@@ -10,6 +10,7 @@ refuses to run unless DEBUG is True AND the database file is the smoke suite's o
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from django.utils.text import slugify
 
 OWNER_EMAIL = "owner@e2e.test"
 CUSTOMER_EMAIL = "customer@e2e.test"
@@ -32,7 +33,9 @@ class Command(BaseCommand):
             owner = User(email=OWNER_EMAIL, username="owner", full_name="E2E Owner", phone="9876500001", is_staff=True)
             owner.set_password(PASSWORD)
             owner.save()
-        Vendor.objects.get_or_create(user=owner, defaults={"name": "Noore Candles", "email": OWNER_EMAIL, "slug": "noore-candles"})
+        # The one shop, named after the store (settings.STORE_NAME), so nothing old leaks into tests.
+        Vendor.objects.get_or_create(user=owner, defaults={
+            "name": settings.STORE_NAME, "email": OWNER_EMAIL, "slug": slugify(settings.STORE_NAME) or "store"})
 
         if not User.objects.filter(email=CUSTOMER_EMAIL).exists():
             customer = User(email=CUSTOMER_EMAIL, username="customer", full_name="E2E Customer", phone="9876500002")

@@ -1,25 +1,29 @@
 # CLAUDE.md — standing rules for this repository
 
 Read this file, docs/ROADMAP.md and docs/BUILD_LOG.md in full before starting any phase.
-Feature specs and phase order live in docs/ROADMAP.md (including the data-model map,
-state-machine tables, bug register and removal proposals in its appendices).
-History and every past decision live in docs/BUILD_LOG.md.
+Feature specs, decisions and phase order live in docs/ROADMAP.md. History and every past
+decision live in docs/BUILD_LOG.md (the Noore phases G0-G5 remain there as history).
 
 ## 1. Project identity
 
-Single-brand Indian D2C store. One owner, own manufacturing, NO vendors, NO marketplace
-sellers, NO commissions. Never introduce multi-vendor concepts. The codebase started as a
-Udemy multivendor course project; vendor-named code still exists (see ROADMAP Appendix E)
-and is being retired, not extended.
+Ayura: a single-brand Indian D2C store selling home-made skin, hair and body care. One owner,
+own manufacturing, NO vendors, NO marketplace sellers, NO commissions. Never introduce
+multi-vendor concepts. Forked on 11 Oct 2026 from the Noore Candles store (same owner), which
+keeps running separately; nothing is shared between the two at run time. The codebase started
+as a Udemy multivendor course project; vendor-named code still exists and is being retired,
+not extended.
 
 - Backend: Django 4.2.7 + Django REST Framework 3.14, SimpleJWT. Python 3.11.
-- Frontend: React 18 + Vite 4, Zustand, Axios. Node 20 LTS.
+- Frontend: React 18 + Vite 4, Zustand, Axios, Tailwind CSS 4, lucide-react. Node 20 LTS.
 - Database: SQLite locally (`backend/db.sqlite3`); PostgreSQL required in production and
-  for the concurrency test. Selected by `DATABASE_URL`.
-- Market: India. Currency must be INR (legacy code still shows USD — see ROADMAP G1).
-- Payments: Razorpay (primary, being integrated). Stripe and PayPal are legacy, hardened,
-  and will be removed once Razorpay is live.
-- Messaging: Meta WhatsApp Cloud API (direct).
+  for the concurrency tests. Selected by `DATABASE_URL`.
+- Market: India. Currency INR, integer paise everywhere.
+- Payments: Razorpay Standard Checkout (built, test mode until KYC) and Cash on Delivery.
+  Stripe and PayPal are legacy, switched off, and stay until their removal is approved.
+- Messaging: order emails and a wa.me link. Meta WhatsApp Cloud API is deferred.
+- Products are cosmetics, not AYUSH-licensed medicines. Copy, seed data, emails and SEO use
+  cosmetic language only (see docs/ROADMAP.md, "Legal questions" and Z9). A legal or
+  regulatory reading is never decided in code: it is a stop condition (section 7).
 
 ## 2. Environment (Windows, PowerShell)
 
@@ -31,6 +35,7 @@ Backend (run from `backend\`):
     .\venv\Scripts\Activate.ps1
     pip install -r requirements-dev.txt
     python manage.py migrate
+    python manage.py seed_ayura                 # placeholder catalogue, DEBUG only
     python manage.py runserver                  # http://127.0.0.1:8000
     python manage.py run_worker                 # job worker, separate terminal
     python manage.py run_worker --once          # process one batch and exit
@@ -38,10 +43,10 @@ Backend (run from `backend\`):
     python -m pytest tests/test_security.py -q  # one file
     python -m pytest -q -k "some_test_name"     # one test
 
-Concurrency test (PostgreSQL only; skips on SQLite by design):
+Concurrency tests (PostgreSQL only; they skip on SQLite by design):
 
     $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
-    python -m pytest inventory/tests/test_inventory.py -k concurrent -q
+    python -m pytest -q
     Remove-Item Env:DATABASE_URL
 
 The Postgres user needs CREATEDB (pytest creates a test database).
@@ -51,7 +56,11 @@ Frontend (run from `frontend\`):
     npm install
     npm run dev                                 # http://localhost:5173
     npm run build                               # production build must succeed
-    npx playwright test                         # once phase G0 has added Playwright
+    npx playwright test                         # smoke suite; see below
+
+Playwright starts its own Django server with whatever `python` is on PATH: activate the backend
+venv first, or set `$env:E2E_PYTHON` to the venv's python.exe. It uses its own database
+(`backend/e2e.sqlite3`, seeded by `seed_e2e` and `seed_ayura --no-pictures`) and its own ports.
 
 Owner account setup after creating a superuser:
 
@@ -60,38 +69,47 @@ Owner account setup after creating a superuser:
 
 (then log out and back in: the dashboard is driven by the `vendor_id` JWT claim.)
 
-`backend/.env` must exist; `DJANGO_SECRET_KEY` is required. Every variable is documented
-in `backend/.env.example`. Dev email goes to the terminal (console backend).
+`backend/.env` must exist; `DJANGO_SECRET_KEY` is required and must be Ayura's own (never
+copied from Noore). Every variable is documented in `backend/.env.example` and
+`frontend/.env.example`. Dev email goes to the terminal (console backend).
 
 Traps:
 - `backend/pytest.ini` has explicit `testpaths`. A test file in a NEW app is silently NOT
   collected until its directory is added there. Always check the collected count.
-- Five frontend files import `../plugin/AddToCart`; the file is `addToCart.jsx`. Works on
-  Windows, breaks Linux builds (fixed in G0).
-- Tests must never write into `backend/media/` (fixed in G0 via MEDIA_ROOT override).
+- Tests must never write into `backend/media/` (conftest gives every test its own MEDIA_ROOT;
+  Playwright seeds with `--no-pictures`).
+- Tailwind inlines CSS `@import`s without rewriting relative font URLs. Typefaces are imported
+  from `frontend/src/theme/brand-fonts.js`, never with `@import` in a CSS file.
+- `render.yaml` runs `bash build.sh`: `build.sh` is committed without the executable bit.
 
 ## 3. Architecture facts — never violate these
 
-- MONEY is integer paise in all new code: `core.money.to_paise`, `from_paise`, `format_inr`
-  (float is rejected). Already paise: `catalog.ProductVariant.price_paise/mrp_paise`,
-  `inventory.Batch.cost_per_unit_paise`. STILL LEGACY Decimal rupees until phase G1, do not
-  touch outside G1: `Product.price/old_price/shipping_amount`, every money field on
-  `Cart`, `CartOrder`, `CartOrderItem`, plus `Coupon.discount` (int %), `Tax.rate` (int %),
-  `ConfigSettings.service_fee_*`.
+- MONEY is integer paise: `core.money.to_paise`, `from_paise`, `format_inr` (float is
+  rejected). The source of a selling price is `catalog.ProductVariant.price_paise`.
+  `store/pricing.py::quote()` is the ONLY place totals are computed (coupons, shipping, tax
+  carve-out). Legacy Decimal columns (`Product.price/old_price`, every Decimal money field on
+  `Cart`, `CartOrder`, `CartOrderItem`) are mirrors kept in step by `store/money_mirror.py` and
+  `catalog/signals.py`; they are never read for logic. `Coupon.discount` is the percentage of a
+  PERCENT coupon. `Tax.rate` and `ConfigSettings.service_fee_*` are not read. Never silently
+  change money storage.
 - STOCK is derived from the append-only ledger `inventory.StockMovement`. Read with
-  `inventory.services.on_hand_qty`, `available_qty`, `batch_on_hand`. Write ONLY through
-  `record_movement`, `receive_production`, `reserve`, `release`, `release_for_cart`,
-  `release_for_order`, `attach_reservations_to_order`, `consume_for_order`,
-  `expire_due_reservations`. Allocation is FEFO via `allocatable_batches`. Never store or
-  increment a stock counter. `Product.stock_qty` is STALE and must not be read for logic.
-  Channels go through `inventory.adapters.get_adapter(channel)`; only WEBSITE exists.
+  `inventory.services.on_hand_qty`, `available_qty`, `available_qty_map`, `batch_on_hand`.
+  Write ONLY through `record_movement`, `receive_production`, `reserve`, `release`,
+  `release_for_cart`, `release_for_order`, `attach_reservations_to_order`, `hold_for_order`,
+  `consume_for_order`, `expire_due_reservations`. Allocation is FEFO via
+  `allocatable_batches`. Never store or increment a stock counter. `Product.stock_qty` is STALE
+  and must not be read for logic. Channels go through `inventory.adapters.get_adapter(channel)`;
+  only WEBSITE exists.
 - ORDER STATUS changes go ONLY through `store/order_state.py`: `set_payment_status`,
-  `set_order_status`, `set_delivery_status`, `cancel_order`, `mark_paid`, `can_dispatch`.
-  Never assign `payment_status`, `order_status` or `delivery_status` directly. Transition
-  tables are in ROADMAP Appendix C.
+  `set_order_status`, `set_delivery_status`, `cancel_order`, `mark_paid`, `can_dispatch`,
+  `place_cod_order`, `confirm_cod`, `advance_order_delivery`. Never assign `payment_status`,
+  `order_status` or `delivery_status` directly. The transition tables enforced in that file
+  are the reference (the old archived roadmap appendix is lost).
 - BACKGROUND WORK goes through `core.jobs`: `@job("name")`, `@periodic("name",
   every_seconds=N)`, `enqueue(name, payload, run_after=aware_dt, dedupe_key=...)`.
-  Delivery is at-least-once, so every handler must be idempotent. No Celery, no Redis.
+  Delivery is at-least-once, so every handler must be idempotent. No Celery, no Redis. On free
+  hosting the jobs are run by `POST /api/v1/jobs/run/` (`core/jobs_api.py`, `JOBS_RUN_TOKEN`),
+  called by `.github/workflows/keep-awake.yml`.
 - EXTERNAL EVENTS (webhooks, payment confirmations, inbound messages) are claimed once with
   `core.idempotency.claim_event(provider, event_id)` inside the same
   `transaction.atomic()` as the side effect.
@@ -106,6 +124,8 @@ Traps:
   `ensure_order_access(request, order)`. DRF defaults to `IsAuthenticated`; a public view
   must declare `permission_classes = (AllowAny,)` explicitly. Rate-limit with
   `throttle_scope` = auth | otp | checkout | review | webhook.
+- PUBLIC NAMES: anything that prints a person's name to other shoppers (review bylines) goes
+  through `core/display_name.py`. It never shows an email address or a phone number.
 - TIME: DB is UTC (`USE_TZ=True`). Business rules use `settings.BUSINESS_TIME_ZONE`
   (Asia/Kolkata) via `core.timeutils.business_now`, `business_today`, `to_business`,
   `require_aware`. Never create a naive datetime.
@@ -117,8 +137,14 @@ Traps:
   `core.logmask.PIIMaskingFilter`. Never `print()`. Never log phones, addresses, payment ids
   or message bodies at INFO.
 - FRONTEND API calls use the single instance in `frontend/src/utils/axios.js` (it attaches
-  and refreshes the JWT). Never create another Axios instance. URLs live in
-  `frontend/src/utils/constants.js` (overridable by `VITE_*` env vars).
+  and refreshes the JWT). Never create another Axios instance. URLs and brand values live in
+  `frontend/src/utils/constants.js` (overridable by `VITE_*` env vars). Public catalogue reads
+  that must survive a sleeping backend use `frontend/src/utils/apiCache.js`.
+- THEME: the whole look is defined in `frontend/src/theme/brand.css` (the BRAND block: role
+  colour tokens such as `canvas`, `panel`, `ink`, `subtle`, `accent`; `font-display` and
+  `font-body`; personality settings) plus `frontend/src/theme/brand-fonts.js` for the typeface
+  files. Shared UI pieces are in `frontend/src/views/ui/kit.jsx`; reusable classes are `.ui-*`.
+  No component names a hex colour, a typeface or a brand.
 
 ## 4. The 12 absolute rules
 
@@ -142,7 +168,7 @@ Traps:
 
 ## 5. Git discipline
 
-- Never work on `main`. One branch per phase: `phase/<id>-<slug>` (e.g. `phase/G0-sync`).
+- Never work on `main`. One branch per phase: `phase/<id>-<slug>` (e.g. `phase/A-rebrand`).
 - Commit after each logical unit with a clear message.
 - Before ANY migration, back up the database:
 
@@ -156,10 +182,11 @@ Traps:
 
 ## 6. Definition of done (every phase)
 
-1. `python -m pytest -q` is fully green; state the exact count (passed / skipped).
+1. `python -m pytest -q` is fully green on SQLite and on PostgreSQL; state the exact counts
+   (passed / skipped).
 2. Every new test was demonstrated to FAIL before the change (show it).
 3. `npm run build` succeeds.
-4. `npx playwright test` passes (from G0 onward), and the phase extends the smoke suite.
+4. `npx playwright test` passes, and the phase extends the smoke suite.
 5. `docs/BUILD_LOG.md` gets a new section with all ten headings: phase completed; files
    created; files modified; migrations (with apply and rollback commands); env vars; tests
    (with command and count); manual verification steps; assumptions made (exhaustive);
@@ -187,5 +214,6 @@ easy as sign-up.
 
 ## 9. Pointers
 
-Feature specs and phase order live in docs/ROADMAP.md. History lives in
-docs/BUILD_LOG.md. Read both before starting any phase.
+Feature specs, decisions and phase order live in docs/ROADMAP.md. History lives in
+docs/BUILD_LOG.md. Free deployment: docs/DEPLOY-AYURA.md; paid single server: docs/DEPLOY.md.
+Read the roadmap and the build log before starting any phase.

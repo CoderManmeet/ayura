@@ -1,17 +1,17 @@
 # systemd unit: the background worker (order emails, Razorpay reconcile, draft expiry,
 # stock-hold expiry, review requests). Restarts on failure and starts at boot.
 [Unit]
-Description=Noore store - background worker
+Description=Ayura store - background worker
 After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=noore
-Group=noore
-WorkingDirectory=/srv/noore/backend
-EnvironmentFile=/srv/noore/backend/.env
-ExecStart=/srv/noore/backend/venv/bin/python manage.py run_worker
+User=ayura
+Group=ayura
+WorkingDirectory=/srv/ayura/backend
+EnvironmentFile=/srv/ayura/backend/.env
+ExecStart=/srv/ayura/backend/venv/bin/python manage.py run_worker
 Restart=always
 RestartSec=5
 NoNewPrivileges=true

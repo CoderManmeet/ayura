@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import apiInstance from '../../utils/axios';
 import usePageTitle from '../../utils/usePageTitle';
-import { Field } from '../ui/noore';
+import { Field } from '../ui/kit';
 
 // Reached from the "create your account" link emailed to the address on a guest order.
 // Choosing a password here creates the account for that email and attaches its orders.
@@ -39,17 +39,17 @@ function ClaimAccount() {
 
     return (
         <main className="mx-auto max-w-md px-5 py-16 md:py-24" data-testid="claim-account">
-            <p className="noore-eyebrow mb-4">Your orders, in one place</p>
-            <h1 className="font-serif text-5xl">Create your account.</h1>
+            <p className="ui-eyebrow mb-4">Your orders, in one place</p>
+            <h1 className="font-display text-5xl">Create your account.</h1>
 
             {!token &&
-                <p className="mt-8 border border-line bg-sand p-4 text-sm">This link is incomplete. Please open the link from your email again.</p>
+                <p className="mt-8 border border-line bg-panel p-4 text-sm">This link is incomplete. Please open the link from your email again.</p>
             }
 
             {done &&
-                <div className="mt-8 border border-line bg-sand p-6" data-testid="claim-done">
+                <div className="mt-8 border border-line bg-panel p-6" data-testid="claim-done">
                     <p className="text-sm leading-7">{done.message}</p>
-                    <Link to="/login" className="noore-btn mt-5">Sign in</Link>
+                    <Link to="/login" className="ui-btn mt-5">Sign in</Link>
                 </div>
             }
 
@@ -58,7 +58,7 @@ function ClaimAccount() {
                     <Field id="claimPassword" label="Choose a password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
                     <Field id="claimConfirm" label="Type it again" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required />
                     {error && <p className="text-sm text-danger" role="alert" data-testid="claim-error">{error}</p>}
-                    <button type="submit" className="noore-btn w-full" disabled={busy}>{busy ? 'Please wait...' : 'Create my account'}</button>
+                    <button type="submit" className="ui-btn w-full" disabled={busy}>{busy ? 'Please wait...' : 'Create my account'}</button>
                 </form>
             }
         </main>

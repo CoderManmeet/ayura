@@ -6,7 +6,7 @@ import apiInstance from '../../utils/axios';
 import UserData from '../plugin/UserData';
 import { formatINR } from '../../utils/money';
 import usePageTitle from '../../utils/usePageTitle';
-import { Loading, PageIntro, Photo } from '../ui/noore';
+import { Loading, PageIntro, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import NotFound from '../base/NotFound';
 import BuyAgainButton from './BuyAgainButton';
@@ -47,41 +47,41 @@ function OrderDetail() {
     return (
         <main data-testid="order-detail-page">
             <PageIntro eyebrow="Order details" title={`Order ${order.oid}.`}>
-                <p className="mt-5 text-xs text-stone">{moment(order.date).format('DD MMM YYYY')} · {orderStatusLabel(order)}</p>
+                <p className="mt-5 text-xs text-subtle">{moment(order.date).format('DD MMM YYYY')} · {orderStatusLabel(order)}</p>
             </PageIntro>
             <div className="mx-auto max-w-5xl px-5 py-12 md:px-10 md:py-16">
                 <div className="grid gap-12 lg:grid-cols-[1.2fr_.8fr]">
                     <section>
                         {!cancelled &&
                             <>
-                                <p className="mb-6 text-[10px] uppercase tracking-[0.2em]">Progress</p>
-                                <ol className="border-l border-clay pl-6">
+                                <p className="mb-6 ui-caption">Progress</p>
+                                <ol className="border-l border-accent pl-6">
                                     {STEPS.map((step, index) => (
                                         <li key={step} className={`relative pb-8 last:pb-0 ${index <= reached ? '' : 'opacity-40'}`}>
-                                            <span className={`absolute -left-[29px] top-1.5 size-2 rounded-full ${index <= reached ? 'bg-clay' : 'bg-line-strong'}`} aria-hidden="true" />
-                                            <p className="font-serif text-xl">{step}</p>
+                                            <span className={`absolute -left-[29px] top-1.5 size-2 rounded-full ${index <= reached ? 'bg-accent' : 'bg-line-strong'}`} aria-hidden="true" />
+                                            <p className="font-display text-xl">{step}</p>
                                         </li>
                                     ))}
                                 </ol>
                                 {tracking.length > 0 &&
-                                    <p className="mt-6 text-sm text-stone">
+                                    <p className="mt-6 text-sm text-subtle">
                                         {tracking.map((entry) => <span key={entry.id} className="block">Tracking number: <b className="text-ink">{entry.id}</b>{entry.courier ? ` (${entry.courier})` : ''}</span>)}
                                     </p>
                                 }
                             </>
                         }
-                        {cancelled && <p className="border border-line bg-sand p-5 text-sm">This order was cancelled.</p>}
+                        {cancelled && <p className="border border-line bg-panel p-5 text-sm">This order was cancelled.</p>}
 
-                        <p className="mb-6 mt-12 text-[10px] uppercase tracking-[0.2em]">Items</p>
+                        <p className="mb-6 mt-12 ui-caption">Items</p>
                         <div className="flex flex-col gap-5">
                             {items.map((item) => (
                                 <div key={item.id} className="flex items-center gap-4">
-                                    <Link to={`/detail/${item.product?.slug}`} className="block size-16 shrink-0 overflow-hidden bg-oat">
+                                    <Link to={`/detail/${item.product?.slug}`} className="block size-16 shrink-0 overflow-hidden bg-muted">
                                         {item.product?.image && <Photo src={item.product.image} alt="" width={SIZES.thumb} className="size-full object-cover" />}
                                     </Link>
                                     <div className="flex-1">
-                                        <p className="font-serif text-xl"><Link to={`/detail/${item.product?.slug}`}>{item.product?.title}</Link></p>
-                                        <p className="text-xs text-stone">{item.variant?.name && item.variant.name !== 'Default' ? `${item.variant.name} · ` : ''}Qty {item.qty} · {formatINR(item.price_paise)} each</p>
+                                        <p className="font-display text-xl"><Link to={`/detail/${item.product?.slug}`}>{item.product?.title}</Link></p>
+                                        <p className="text-xs text-subtle">{item.variant?.name && item.variant.name !== 'Default' ? `${item.variant.name} · ` : ''}Qty {item.qty} · {formatINR(item.price_paise)} each</p>
                                     </div>
                                     <p className="text-sm">{formatINR(item.sub_total_paise)}</p>
                                 </div>
@@ -89,27 +89,27 @@ function OrderDetail() {
                         </div>
                     </section>
 
-                    <section className="h-fit bg-sand p-6 md:p-8">
-                        <p className="text-[10px] uppercase tracking-[0.2em]">Delivery &amp; payment</p>
-                        <p className="mt-6 font-serif text-2xl">{order.full_name}</p>
-                        <p className="mt-2 text-sm leading-6 text-stone">{order.address}<br />{order.city}, {order.state} {order.pincode}</p>
+                    <section className="h-fit bg-panel p-6 md:p-8">
+                        <p className="ui-caption">Delivery &amp; payment</p>
+                        <p className="mt-6 font-display text-2xl">{order.full_name}</p>
+                        <p className="mt-2 text-sm leading-6 text-subtle">{order.address}<br />{order.city}, {order.state} {order.pincode}</p>
 
                         <div className="mt-6 flex flex-col gap-2 border-t border-line pt-5 text-sm">
                             <div className="flex justify-between"><span>Subtotal</span><span>{formatINR(order.sub_total_paise)}</span></div>
                             {order.saved_paise > 0 &&
-                                <div className="flex justify-between text-clay"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span>-{formatINR(order.saved_paise)}</span></div>
+                                <div className="flex justify-between text-accent"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span>-{formatINR(order.saved_paise)}</span></div>
                             }
                             <div className="flex justify-between"><span>Shipping</span><span>{order.shipping_amount_paise > 0 ? formatINR(order.shipping_amount_paise) : 'Free'}</span></div>
                             {order.service_fee_paise > 0 &&
                                 <div className="flex justify-between"><span>Service fee</span><span>{formatINR(order.service_fee_paise)}</span></div>
                             }
-                            <div className="mt-2 flex justify-between border-t border-line pt-3 font-serif text-2xl"><span>Total</span><span>{formatINR(order.total_paise)}</span></div>
-                            <p className="text-xs text-stone">Inclusive of all taxes · {paymentText}</p>
+                            <div className="mt-2 flex justify-between border-t border-line pt-3 font-display text-2xl"><span>Total</span><span>{formatINR(order.total_paise)}</span></div>
+                            <p className="text-xs text-subtle">Inclusive of all taxes · {paymentText}</p>
                         </div>
 
                         <div className="mt-8 flex flex-wrap items-center gap-5">
-                            <BuyAgainButton orderOid={order.oid} className="noore-btn" />
-                            <Link to="/customer/orders/" className="noore-link text-[10px] uppercase tracking-[0.15em]">All orders</Link>
+                            <BuyAgainButton orderOid={order.oid} className="ui-btn" />
+                            <Link to="/customer/orders/" className="ui-link ui-caption">All orders</Link>
                         </div>
                     </section>
                 </div>

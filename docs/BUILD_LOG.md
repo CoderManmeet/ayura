@@ -1,7 +1,290 @@
 # BUILD LOG
 
-Single-brand D2C conversion of the Django + React ecommerce codebase.
-Newest phase first. Every phase ends with the ten sections required by the brief.
+Ayura (forked from the Noore Candles store on 11 Oct 2026): a single-brand D2C store built on the
+Django + React ecommerce codebase. Newest phase first. Every phase ends with the ten sections
+required by CLAUDE.md.
+
+---
+
+## Ayura fork: decisions (11 Oct 2026)
+
+On 11 Oct 2026 the owner forked this store into **Ayura**, a separate brand selling home-made
+skin, hair and body care. Noore keeps running from its own repository, unchanged. Everything in
+this log below this point is Noore's history and stays as it was written. The full Ayura plan,
+the owner's answers (Y1-Y20), the defaults taken (Z1-Z9) and the legal questions (L1-L7) are in
+`docs/ROADMAP.md`.
+
+| # | Question | Decision | Why | Cost to reverse |
+|---|---|---|---|---|
+| K1 | Theme names | Brand-neutral: `theme/brand.css` (was `noore.css`), `views/ui/kit.jsx` (was `noore.jsx`), `.ui-*` classes (were `.noore-*`), colour tokens named by role (`canvas`, `panel`, `soft`, `muted`, `subtle`, `accent`) instead of by colour (`cream`, `sand`, `linen`, `oat`, `stone`, `clay`), `font-display` / `font-body` (were `font-serif` / `font-sans`). **Approved in writing by the owner, 11 Oct 2026** (rule 4: a component file is renamed) | A third brand then changes one file | Medium (a rename back) |
+| K2 | Typefaces | Bundled npm `@fontsource` packages, loaded from `src/theme/brand-fonts.js`. Never `@import`ed from CSS: Tailwind inlines the import and leaves the font files' relative URLs pointing at the wrong folder (found while building; the fonts 404'd) | No font service request, no tracking | Low |
+| K3 | Small labels | The repeated inline "tiny uppercase tracked" pattern became one class, `.ui-caption`, whose case, size and spacing are set in the theme | The look of every label is a theme decision, not a component one | Low |
+| K4 | `index.html` brand values | Filled at build time by a small Vite plugin (`brand-html` in `vite.config.js`): title and description from `VITE_STORE_NAME` / `VITE_STORE_DESCRIPTION`, theme-color from `--color-canvas` in `brand.css`, API preconnect worked out from `VITE_API_BASE_URL` | Noore's file hard-coded its own API address and colour | Low |
+| K5 | "Net weight" row on the product page | **Removed from the page** (the `weight_grams` field stays): the seeded sizes are millilitres, and showing a shipping weight as a net quantity would be a false label. Phase B adds a real net quantity with a unit | Legal Metrology territory (L3); never show a number that is not the declared one | One line |
+| K6 | Candle-only database fields | None exist. Candle facts lived only in seed data and copy, so **no removal migration was needed** | Audited in Step 0 | n/a |
+| K7 | Seed catalogue | `seed_ayura`: 3 categories, 8 placeholder products, 15 sizes, stock with best-before dates, `WELCOME10`, simple drawn placeholder pictures (Pillow) unless `--no-pictures`. A banned-claim word list is enforced by a test. `seed_noore` stays in the repository (rule 4; removal proposal) | Playwright and local development need a personal-care catalogue | Low |
+| K8 | `keep-awake.yml` default address | Removed. Without the `API_BASE_URL` variable it says so and does nothing | A copied workflow pinged Noore's backend by default | Low |
+| K9 | `render.yaml` build command | `bash build.sh` (was `./build.sh`) | `build.sh` is committed without the executable bit, so `./build.sh` fails on a fresh Render build | One line |
+| K10 | `backend/static/` | Kept in git with `.gitkeep` | Git does not track empty folders, so a fresh clone had no `static/`, and `check --deploy` (and `test_django_deployment_check_passes_with_production_settings`) failed. Noore has the same latent problem | Delete one file |
+| K11 | Django admin (/admin/) branding | Jazzmin titles read `STORE_NAME` (were the course author's "Desphixs" and "Modern Marketplace") | No marketplace wording anywhere | Low |
+| K12 | Shop name in `seed_e2e` | `settings.STORE_NAME` | No old brand in test data the browser shows | Low |
+| K13 | Noore docs | Moved, unchanged, to `docs/archive/ROADMAP-noore-v2.md` and `docs/archive/DEPLOY-FREE-noore.md`. `docs/DEPLOY.md` (paid server) renamed to Ayura paths and names | One roadmap and one free-deploy guide per repository | Low |
+| K14 | `backups/` | Added to `.gitignore`. `backups/db-20261004-130927.sqlite3` is **still tracked** (it was committed in 435cbd8); it holds only the course demo data (one demo account, one demo order). Removing it from the repository is a removal proposal; purging it from history would be a history rewrite (CLAUDE.md section 5) and is not proposed | CLAUDE.md says backups are git-ignored; they were not | n/a |
+
+---
+
+## PHASE A — Fork and rebrand (WAITING: palette choice and logo)
+
+### 1. PHASE COMPLETED
+
+**Phase A**, branch `phase/A-rebrand`, built on Noore `c879153`.
+
+Done:
+- **The storefront reads as Ayura everywhere.** Store name, page titles, description, header
+  and footer, About, contact, policies, empty and error states, search, the admin dashboard
+  and Django admin. No "Noore", "candle" or "vendor" anywhere a shopper can reach (Playwright
+  crawl).
+- **Tagline as the home headline:** "If we wouldn’t use it at home, we don’t bottle it." It is
+  also the footer line and opens the About page, from `VITE_TAGLINE`.
+- **Brand-neutral theme (K1-K4).** The whole look, including the browser colour, comes from one
+  BRAND block in `src/theme/brand.css` plus the font imports in `src/theme/brand-fonts.js`.
+- **Three palette options built and screenshotted** (home, product, cart at 390 px and 1280 px).
+  Option 1 (Amber bottle) is in the files until the owner picks.
+- **Policy pages** gain labelled placeholder sections for personal care: opened products;
+  damaged, leaking or wrong items; using the products; shelf life. `PLACEHOLDER_COPY` stays
+  `true` and every page says so.
+- **`seed_ayura`** (K7).
+- **Deployment:** `docs/DEPLOY-AYURA.md` (every environment variable, the fork steps, the free
+  stack), `render.yaml` (K9), `keep-awake.yml` (K8), `deploy/` renamed for Ayura.
+- **Docs:** this section, the reconstructed section below, `CLAUDE.md` updated (approved),
+  `docs/ROADMAP.md` is Ayura's plan.
+
+Waiting on the owner: the palette choice (then the two unchosen font packages are removed) and
+the logo file (then it replaces the text wordmark and the placeholder favicon).
+
+### 2. FILES CREATED
+
+- `backend/catalog/management/commands/seed_ayura.py`
+- `backend/catalog/tests/test_seed_ayura.py`
+- `backend/static/.gitkeep`
+- `frontend/src/theme/brand-fonts.js`
+- `docs/DEPLOY-AYURA.md`
+- `docs/ROADMAP.md` (Ayura's; the previous one is archived, see section 3)
+
+### 3. FILES MODIFIED
+
+Renamed (and modified):
+- `frontend/src/theme/noore.css` → `frontend/src/theme/brand.css`
+- `frontend/src/views/ui/noore.jsx` → `frontend/src/views/ui/kit.jsx`
+- `deploy/noore-web.service`, `noore-worker.service`, `noore-backup.service`, `noore-backup.timer` → `deploy/ayura-*`
+- `docs/ROADMAP.md` → `docs/archive/ROADMAP-noore-v2.md` (unchanged)
+- `docs/DEPLOY-FREE.md` → `docs/archive/DEPLOY-FREE-noore.md` (unchanged)
+
+Modified:
+- Frontend: `index.html`, `vite.config.js`, `.env.example`, `package.json`, `package-lock.json`, `playwright.config.js`, `public/favicon.svg`, `src/main.jsx`, `src/App.jsx`, `src/theme/admin.css`, `src/layouts/LegacyStyles.jsx`, `src/utils/constants.js`, `apiCache.js`, `image.js`, `usePageTitle.js`, `src/views/base/StoreHeader.jsx`, `StoreFooter.jsx`, `NotFound.jsx`, `src/views/shop/home.jsx`, `Products.jsx`, `ProductDetail.jsx`, `Cart.jsx`, `Checkout.jsx`, `OrderConfirmation.jsx`, `src/views/customer/Orders.jsx`, `OrderDetail.jsx`, `BuyAgainButton.jsx`, `src/views/auth/login.jsx`, `register.jsx`, `logout.jsx`, `ClaimAccount.jsx`, `src/views/policy/About.jsx`, `Contact.jsx`, `PolicyPage.jsx`, `policies.js`, `src/views/owner/ShopNotReady.jsx`, `src/views/vendor/Dashboard.jsx`, `Sidebar.jsx`, `e2e/brand.spec.js`, `storefront.spec.js`, `checkout.spec.js`, `coldstart.spec.js`
+- Backend: `backend/settings.py`, `.env.example`, `core/management/commands/seed_e2e.py`
+- Root: `CLAUDE.md`, `.gitignore`, `render.yaml`, `.github/workflows/keep-awake.yml`, `deploy/Caddyfile`, `backup.sh`, `restore.sh`, `backup.env.example`, `env.production.example`, `docs/DEPLOY.md`, `docs/BUILD_LOG.md`
+
+### 4. MIGRATIONS ADDED
+
+None. No model, field or endpoint was added, renamed or removed.
+
+### 5. ENV VARS ADDED
+
+Frontend (`frontend/.env.example`): `VITE_TAGLINE`, `VITE_STORE_DESCRIPTION` (both optional).
+Changed defaults: `VITE_STORE_NAME` and backend `STORE_NAME` now default to `Ayura`;
+`VITE_WHATSAPP_NUMBER` example is the owner's number `917888548215`.
+
+### 6. TESTS ADDED
+
+Backend, `backend/catalog/tests/test_seed_ayura.py`, 5 tests. Shown failing first: with the
+command file absent, 4 failed and 1 passed (the "refuses outside DEBUG" test passes either way,
+because an unknown command also raises `CommandError`).
+
+    python -m pytest catalog/tests/test_seed_ayura.py -q   ->  5 passed
+    python -m pytest -q                                     ->  202 passed, 2 skipped (SQLite, 204 collected)
+    $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
+    python -m pytest -q                                     ->  204 passed, 0 skipped (PostgreSQL 16)
+
+`tests/test_launch.py::test_django_deployment_check_passes_with_production_settings` failed on
+the fresh Ayura clone (`static/` missing) and passes with `backend/static/.gitkeep` (K10).
+
+Playwright, `frontend/e2e/brand.spec.js` extended: the crawl now also forbids "noore" and
+"candle"; every title contains the store name; the browser colour equals the theme's canvas;
+the description has no unfilled placeholder; a new static check finds no leftover theme or
+brand names in `src/`. Shown failing first: the new `brand.spec.js` run against the untouched
+Noore code gives **6 failed, 4 passed** (the 4 are the unchanged access-control checks).
+
+    npx playwright test   ->  21 passed
+
+The other specs were moved to the Ayura seed (Face Serum 30 ml Rs 449 / 50 ml Rs 649, Hair Oil,
+Shampoo) with every expected total recalculated: 50 ml cart Rs 649 + Rs 79 = Rs 728; WELCOME10
+takes Rs 64.90 for Rs 663.10; two 50 ml (Rs 1,298) ship free; the reorder cart is Rs 748 + Rs 79.
+
+### 7. MANUAL VERIFICATION STEPS
+
+Make the repository (keeps Noore's history; Noore's folder is not touched):
+
+    git clone "C:\path\to\noore\Completed Source Code" ayura
+    cd ayura
+    git remote remove origin
+    git checkout -b phase/A-rebrand
+
+Apply the Phase A files, delete the old paths listed under "Renamed" in section 3, then:
+
+    cd backend
+    python -m venv venv
+    .\venv\Scripts\Activate.ps1
+    pip install -r requirements-dev.txt
+    Copy-Item .env.example .env
+    python -c "import secrets; print(secrets.token_urlsafe(64))"
+
+Paste the printed value as `DJANGO_SECRET_KEY` in `backend\.env`, set `DJANGO_DEBUG=True` and
+`DJANGO_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend`, then:
+
+    python manage.py migrate
+    python manage.py seed_ayura
+    python -m pytest -q
+    python manage.py runserver
+
+Second terminal:
+
+    cd frontend
+    npm install
+    npm run build
+    npm run dev
+
+1. http://localhost:5173 : the tagline is the headline; the header says Ayura; six products in the row.
+2. Open Face Serum: 30 ml Rs 449 (struck Rs 499, 10% off); 50 ml Rs 649 (7% off). No "Net weight" row.
+3. Footer: each policy page shows the placeholder notice and the new personal-care sections.
+4. Change `--color-canvas` in `frontend/src/theme/brand.css`: every page and the browser colour follow.
+5. `npx playwright test` with the venv active: 21 passed.
+
+### 8. ASSUMPTIONS MADE
+
+1. Decisions K1-K14 above, and Y1-Y20, Z1-Z9 in `docs/ROADMAP.md`.
+2. Home copy uses only facts the owner stated: home-made, made fresh, small batches, skin/hair/body care. No ingredient, origin, "natural" or "Ayurvedic" claim (Z9).
+3. The hero picture is the first featured product's photo, as before.
+4. Placeholder pictures are drawn only by `seed_ayura` (DEBUG only) and never reach production.
+5. Seed shipping weights (`weight_grams`) are rough packed weights, used only by phase-B shipping work.
+6. Seed batches carry a best-before one year out; the real shelf life is the owner's to enter.
+7. Test names and fixtures that say "candle" (and a few `STORE_NAME = "Noore Candles"` settings inside tests that test the setting itself) were left alone (Y18).
+8. `docs/DEPLOY.md` (paid server) keeps Noore's proven steps with Ayura's names; it was not re-run.
+
+### 9. KNOWN GAPS
+
+- **Palette not chosen, logo not supplied.** Option 1 is in the files; the favicon is a placeholder "A".
+- Some inline styles still set uppercase letter-spacing (stock status, size buttons, a few admin labels). They are outside the `.ui-caption` pattern and change in the screens phase B rewrites.
+- The admin area keeps square corners and uppercase labels from `admin.css`: it follows the palette and typefaces, not the storefront's button shape.
+- Support email is the placeholder `support@example.com` until `VITE_SUPPORT_EMAIL` is set.
+- Home "UPI, cards or cash. Pay online or on delivery, at the same price" stays true only until phase C turns a COD fee on; phase C changes that line.
+- Email delivery, a custom domain and live payments are as in `docs/DEPLOY-AYURA.md`, "What this deployment does not have".
+- Legal questions L1-L7 are open.
+
+### 10. NOT DONE AND WHY
+
+- Removing `seed_noore`, the tracked `backups/` file, or the legacy vendor code: rule 4; proposals only.
+- Renaming test fixtures: Y18.
+- Category hierarchy, net quantity, sizes screen: phase B.
+
+---
+
+## RECONSTRUCTED — Noore work not recorded in this log (4 Oct to 11 Oct 2026)
+
+Written on 11 Oct 2026 **from the git history and the code**, not by whoever made the changes.
+It records what the commits contain; the reasons are taken from comments in the code where they
+exist. Commits: `435cbd8` (the first commit, 4 Oct), `97b9f1a`, `8eecc47`, `947ed05` (4 Oct),
+`3faa32e` (7 Oct), `cfab735` (8 Oct), `c879153` (11 Oct).
+
+### 1. PHASE COMPLETED
+
+Six changes after G5 part A, plus features already present in the first commit:
+
+- **In the first commit but not logged** (`435cbd8`): deleting a product from the dashboard
+  (only when it has no stock history or orders, audited as `product.deleted`; otherwise refused
+  with an explanation), hiding and showing a product (`vendor-product-visibility`), the
+  `purge_product` command (erases demo products and their ledger rows, refuses anything that has
+  been ordered), and an Add Product form that tolerates its blank repeatable rows. 10 tests
+  (190 collected, against 180 at the end of G4.5).
+- **Free hosting** (`97b9f1a`): `render.yaml`, `backend/build.sh`, `frontend/vercel.json`,
+  `docs/DEPLOY-FREE.md`; product photos on Cloudinary when `CLOUDINARY_URL` is set; static files
+  through WhiteNoise; Render's hostname allowed automatically; background jobs runnable over
+  HTTP (`POST /api/v1/jobs/run/`, `core/jobs_api.py`, off unless `JOBS_RUN_TOKEN` is set) and
+  a GitHub workflow calling it; `backend/db.sqlite3` and `backend/media/` removed from git.
+- **`claim_shop` on an empty database** (`8eecc47`): creates the store's one shop instead of
+  pointing to the old shop sign-up page.
+- **Listing speed** (`947ed05`): a whole page's stock in two queries (`available_qty_map`),
+  prefetched variants, ratings and order counts annotated in one query; a product with no MRP
+  no longer divides by zero and breaks the listing; Cloudinary photos requested at the size
+  shown (`frontend/src/utils/image.js`); the jobs workflow every 10 minutes.
+- **Admin area out of the shopper's download** (`3faa32e`): admin pages and their heavy
+  libraries load only when opened (lazy routes, `manualChunks`); the home collection became a
+  scrollable row.
+- **Admin area design** (`cfab735`): `frontend/src/theme/admin.css` gives the Bootstrap-era
+  dashboard markup the store's look without loading Bootstrap; new dashboard home and sidebar.
+- **First-visit speed and safe bylines** (`c879153`):
+  - `frontend/src/utils/apiCache.js` starts the catalogue request before React renders, paints
+    the last copy from `localStorage`, and says honestly when the server is waking.
+  - `.github/workflows/keep-awake.yml` replaced the jobs workflow: it pings and runs jobs.
+  - `backend/core/display_name.py`: review bylines never show an email address or a phone number.
+  - `User.save()` now falls back to the email's local part, not the whole address.
+
+### 2. FILES CREATED
+
+`render.yaml`, `backend/build.sh`, `backend/core/jobs_api.py`, `backend/core/display_name.py`,
+`backend/store/management/commands/purge_product.py`, `frontend/vercel.json`,
+`frontend/src/utils/image.js`, `frontend/src/utils/apiCache.js`, `frontend/src/theme/admin.css`,
+`frontend/e2e/coldstart.spec.js`, `.github/workflows/keep-awake.yml`, `docs/DEPLOY-FREE.md`.
+(`.github/workflows/run-jobs.yml` was created in `97b9f1a` and deleted in `c879153`.)
+
+### 3. FILES MODIFIED
+
+Backend: `backend/settings.py`, `.env.example`, `api/urls.py`, `core/serializers.py`,
+`core/management/commands/claim_shop.py`, `catalog/display.py`, `inventory/services.py`,
+`store/models.py`, `store/serializers.py`, `store/views.py`, `vendor/views.py`,
+`userauths/models.py`, `userauths/serializer.py`, `tests/test_launch.py`, `tests/test_security.py`,
+`catalog/tests/test_storefront.py`. Frontend: `index.html`, `vite.config.js`,
+`playwright.config.js`, `src/main.jsx`, `src/App.jsx`, `src/theme/noore.css`,
+`src/views/ui/noore.jsx`, `src/views/plugin/Addon.jsx`, the shop, customer, owner and vendor
+views listed in the commits, `e2e/brand.spec.js`.
+
+### 4. MIGRATIONS ADDED
+
+None (checked: no file under any `migrations/` folder changed between `435cbd8` and `c879153`).
+
+### 5. ENV VARS ADDED
+
+`CLOUDINARY_URL`, `JOBS_RUN_TOKEN`, `JOBS_RUN_BATCH` (backend); `RENDER_EXTERNAL_HOSTNAME` (set
+by Render); GitHub repository variable `API_BASE_URL` and secret `JOBS_RUN_TOKEN`.
+
+### 6. TESTS ADDED
+
+Collected tests at each commit: `435cbd8` 190, `97b9f1a` 194, `8eecc47` 195, `947ed05` 197,
+`c879153` 199. At `c879153`: SQLite 197 passed, 2 skipped; PostgreSQL 16 199 passed; Playwright
+20 passed (measured on 11 Oct 2026 for the Ayura Step 0 audit). Whether each was shown failing
+first is not recorded.
+
+### 7. MANUAL VERIFICATION STEPS
+
+As in `docs/archive/DEPLOY-FREE-noore.md` for Noore.
+
+### 8. ASSUMPTIONS MADE
+
+1. The commit contents are the record; anything not in a commit or a code comment is not claimed.
+
+### 9. KNOWN GAPS (found while reconstructing)
+
+- `render.yaml` runs `./build.sh`, but `build.sh` is committed without the executable bit (fixed for Ayura, K9; Noore still has it).
+- A fresh clone has no `backend/static/` (fixed for Ayura, K10; Noore still has it).
+- `DEPLOY-FREE.md` step 6 names a workflow ("Run store background jobs") that no longer exists, and says `API_BASE_URL` is a secret without `/api/v1/`; `keep-awake.yml` reads a repository *variable* that includes `/api/v1/`.
+- `keep-awake.yml` defaulted to Noore's API address (fixed for Ayura, K8).
+- `backend/runtime.txt` says `python-3.9.16` (a Heroku file; Render uses `PYTHON_VERSION` 3.11.9 from `render.yaml`).
+- `backups/db-20261004-130927.sqlite3` is tracked although CLAUDE.md says backups are ignored (K14).
+- `docs/archive/ROADMAP-v1.md`, referenced for Appendix C and E, was never in the repository.
+
+### 10. NOT DONE AND WHY
+
+Nothing was changed in Noore's repository by this reconstruction.
 
 ---
 

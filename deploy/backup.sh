@@ -7,8 +7,8 @@
 set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL is not set}"
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/noore}"
-MEDIA_DIR="${MEDIA_DIR:-/srv/noore/backend/media}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/ayura}"
+MEDIA_DIR="${MEDIA_DIR:-/srv/ayura/backend/media}"
 BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-14}"
 BACKUP_REMOTE="${BACKUP_REMOTE:-}"
 

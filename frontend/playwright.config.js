@@ -3,7 +3,8 @@
 //   npx playwright test            (from frontend/, with the backend virtualenv activated)
 //
 // It starts its own backend and frontend on spare ports, against a throwaway SQLite database
-// (backend/e2e.sqlite3, recreated on every run and git-ignored) seeded by `seed_noore`.
+// (backend/e2e.sqlite3, recreated on every run and git-ignored) seeded by `seed_ayura`
+// (with --no-pictures, so the suite never writes files into backend/media/).
 // Your real db.sqlite3 and your running dev servers are never touched.
 //
 // The backend is started with whatever `python` is on PATH, so activate the virtualenv first
@@ -52,7 +53,7 @@ export default defineConfig({
     projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
     webServer: DEPLOYED_URL ? undefined : [
         {
-            command: `${py} manage.py migrate --noinput && ${py} manage.py seed_e2e && ${py} manage.py seed_noore && ${py} manage.py runserver 127.0.0.1:${API_PORT} --noreload`,
+            command: `${py} manage.py migrate --noinput && ${py} manage.py seed_e2e && ${py} manage.py seed_ayura --no-pictures && ${py} manage.py runserver 127.0.0.1:${API_PORT} --noreload`,
             cwd: backendDir,
             url: `http://127.0.0.1:${API_PORT}/api/v1/addon/`,
             reuseExistingServer: false,

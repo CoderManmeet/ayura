@@ -1,4 +1,4 @@
-# Caddy configuration for the Noore Candles store: one domain serves everything.
+# Caddy configuration for the Ayura store: one domain serves everything.
 #
 #   /api/*, /admin/*               -> Django (gunicorn on 127.0.0.1:8000)
 #   /robots.txt, /sitemap.xml      -> Django
@@ -8,9 +8,9 @@
 #   everything else                -> the built React storefront (frontend/dist)
 #
 # Caddy gets and renews the HTTPS certificate by itself and redirects HTTP to HTTPS.
-# The two values below come from the environment (set in /etc/caddy/noore.env, see DEPLOY.md):
+# The two values below come from the environment (set in /etc/caddy/ayura.env, see DEPLOY.md):
 #   SITE_ADDRESS   your domain, e.g. shop.example.in
-#   APP_ROOT       where the repository lives on the server, e.g. /srv/noore
+#   APP_ROOT       where the repository lives on the server, e.g. /srv/ayura
 {$SITE_ADDRESS} {
 	encode zstd gzip
 

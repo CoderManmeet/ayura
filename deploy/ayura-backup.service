@@ -1,0 +1,11 @@
+# systemd unit: one backup run. Triggered nightly by ayura-backup.timer.
+[Unit]
+Description=Ayura store - nightly backup (database and media)
+
+[Service]
+Type=oneshot
+User=ayura
+Group=ayura
+EnvironmentFile=/srv/ayura/backend/.env
+EnvironmentFile=-/srv/ayura/deploy/backup.env
+ExecStart=/srv/ayura/deploy/backup.sh

@@ -1,0 +1,21 @@
+# systemd unit: the Django API under gunicorn. Restarts on failure and starts at boot.
+# Install:  sudo cp deploy/ayura-web.service /etc/systemd/system/  (edit User and paths first)
+[Unit]
+Description=Ayura store - web (gunicorn)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ayura
+Group=ayura
+WorkingDirectory=/srv/ayura/backend
+EnvironmentFile=/srv/ayura/backend/.env
+ExecStart=/srv/ayura/backend/venv/bin/gunicorn backend.wsgi:application --bind 127.0.0.1:8000 --workers 3 --timeout 60 --access-logfile - --error-logfile -
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

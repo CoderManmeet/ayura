@@ -155,3 +155,5 @@ cython_debug/
 .idea/
 # Playwright smoke-suite database (recreated on every run)
 e2e.sqlite3
+# Database backups made before migrations (CLAUDE.md section 5). Never committed.
+backups/

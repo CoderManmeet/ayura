@@ -1,538 +1,381 @@
-# ROADMAP — Noore Candles store (v2, re-scoped 3 Oct 2026)
+# ROADMAP — Ayura store (v1, 11 Oct 2026)
 
-This file replaces the previous roadmap. The previous version is kept unchanged at
-`docs/archive/ROADMAP-v1.md` and is still the reference for Appendix C and Appendix E.
+Ayura is a separate brand built from the Noore Candles codebase: its own repo (Noore's git
+history kept, new remote), database, Render backend, Vercel frontend, Cloudinary and Razorpay
+accounts. Noore keeps running unchanged. Noore's roadmap is kept, unchanged, at
+`docs/archive/ROADMAP-noore-v2.md`; its free-hosting guide at `docs/archive/DEPLOY-FREE-noore.md`.
 
-## What was cut from v1, and why
+**Lost reference.** Noore's roadmap pointed to `docs/archive/ROADMAP-v1.md` for its Appendix C
+(order state-machine tables) and Appendix E (removal proposals R1-R21). That file was never in
+the repository and the owner does not have it (confirmed 11 Oct 2026). The enforced state
+machine is `backend/store/order_state.py`; it is the reference from now on. R1-R20 must be
+re-listed from the code before any of them is proposed again.
 
-v1 was sized for an established trading business. Noore Candles is a new, low-volume,
-single-owner brand, so everything that costs build time without helping the first hundred
-orders is cut or deferred.
+Ayura sells home-made natural skincare, haircare and bodycare: essential-oil blends,
+shampoos and similar. No product is licensed as an Ayurvedic (AYUSH) medicine, and every
+product is sold as a cosmetic.
 
-| Cut or deferred | Why | Comes back when |
-|---|---|---|
-| Grievance module with SLA timers | A named contact, an email address and a wa.me link cover this volume | Order volume makes manual handling unreliable |
-| GST | Owner is below the registration threshold. Tax rate is 0 and prices are shown "inclusive of all taxes" | Owner registers for GST (after seeing a CA) |
-| WhatsApp Cloud API, COD-confirmation messaging, abandoned-cart messaging | Needs Meta business verification, templates and a rate card. Replaced by a plain wa.me link and order emails. COD is confirmed manually by the owner | COD volume makes manual confirmation a chore |
-| Subscriptions / UPI AutoPay | No repeat-purchase data yet. One-tap reorder covers it | Reorder data shows a real repeat cycle |
-| Margin-and-cohort owner dashboard | The existing owner dashboard plus Django admin is enough. Batch cost stays recorded, so margin can be computed later | Owner asks for it |
-| Serviceable-pincode list, COD fee, COD order cap | Not needed until RTO is a measured problem | RTO becomes a problem |
-| Multi-vendor residue removal (R1-R20) | Rule 4. It works, and removing it earns nothing before launch. Exception: R21 (vendor references in the storefront) and the header "Vendor" dropdown are pulled forward into G4.5, approved in writing by the owner on 3 Oct 2026 | After launch, with written approval |
-| Expiry / best-before features | Candles do not expire. The batch and ledger code stays (it prevents overselling and holds cost). `perishable` stays unticked on every variant so expiry logic is dormant | Never, unless a perishable product is added |
-
-Kept: pricing, prior-price history, Razorpay (test mode first), COD, reviews, reorder,
-launch readiness.
-
-## Decisions locked for this roadmap (3 Oct 2026)
+## Decisions locked by the owner (11 Oct 2026)
 
 | # | Decision |
 |---|---|
-| P1 | Currency is INR. All pricing logic is integer paise |
-| P2 | Shipping is a flat Rs 79 per order. Free when the post-discount subtotal is Rs 999 or more |
-| P3 | No COD fee, no COD maximum, no pincode restriction |
-| P4 | The marketplace service fee is no longer charged or read. `ConfigSettings.service_fee_*` columns stay in place. Dropping them is a later removal proposal |
-| P5 | Tax rate is 0. Prices are shown "inclusive of all taxes". No tax line at checkout |
-| P6 | Legacy money: `*_paise` integer columns are added beside each Decimal column on `Cart`, `CartOrder`, `CartOrderItem`, backfilled, and all logic switches to paise |
-| P7 | `ProductVariant.price_paise` is the only source of a selling price. `Product.price` is not read for logic |
-| P8 | Coupons: percentage or flat rupees off. Per-customer limit, total usage cap, minimum order value, expiry date. Discount applies to the item subtotal before shipping. Free shipping can combine with a coupon |
-| P9 | Strike-through shows MRP against selling price. An append-only price history is recorded from day one. A config flag (off by default) can later gate the strike-through on that history |
-| P10 | Guest checkout is allowed (phone, email, address). Account creation is offered after purchase |
-| P11 | Reviews: verified buyers only (a delivered order line), published only after owner moderation |
-| P12 | Stripe and PayPal code stays in place. Both are hidden from checkout once Razorpay test mode works |
-| P13 | Messaging: wa.me link in the footer and on the contact page. Order emails only |
+| Y1 | Separate repo forked with Noore's history. No multi-brand code |
+| Y2 | Not GST-registered at launch. Tax rate 0, prices shown "inclusive of all taxes", no HSN fields (same as Noore P5) |
+| Y3 | No AYUSH-licensed products. Every product is a cosmetic, and copy uses cosmetic language only |
+| Y4 | Categories can have sub-categories (Skincare → Face → Serums) |
+| Y5 | No stored filter attributes (skin type, hair type, concern, dosha). Instead each product gets a short owner-written benefit line, shown on the product card |
+| Y6 | The owner creates sizes from the admin area. Each size carries a net quantity in grams **or** millilitres |
+| Y7 | Free gift samples: the owner decides per order whether samples go in and which ones; the store tracks which sample recipients later bought the full product |
+| Y8 | Kits are assembled from the stock of their component products, not stocked separately |
+| Y9 | No refill subscriptions |
+| Y10 | The owner sets shipping in the admin area: on/off, flat amount, and optional free shipping above a threshold |
+| Y11 | The owner sets an optional COD fee (on/off and amount), meant to nudge customers towards UPI |
+| Y12 | No shelf-life rules and no blocking when an expiry date is missing. The owner can record an expiry date before dispatch, and the admin area flags expired or undated stock before shipping |
+| Y13 | The owner makes the products at home. Label details (maker name and address, etc.) are store-wide |
+| Y14 | Damaged, leaking or other problems are handled through a customer support query system |
+| Y15 | Theme and shared UI become brand-neutral: `theme/brand.css`, `.ui-*` classes, `views/ui/kit.jsx` (written approval for the rename, 11 Oct 2026) |
+| Y16 | BUILD_LOG gets a reconstructed catch-up section; CLAUDE.md is updated for Ayura (approved) |
+| Y17 | Hosting on free tiers; the frontend lives on a `*.vercel.app` address for now |
+| Y18 | Test variable names containing "candle" stay. Only strings a shopper can see, and seed slugs, change |
+| Y19 | Gift samples are a surprise: the customer is **never** told about them on the order page, in emails or anywhere else (owner, 11 Oct 2026). They show only in the admin area |
+| Y20 | Brand assets: tagline "If we wouldn’t use it at home, we don’t bottle it."; WhatsApp 7888548215 (`917888548215` for wa.me); support email stays a placeholder for now; logo to follow |
 
-Decisions made on the owner's behalf (the owner delegated these; each is cheap to reverse):
+## Defaults taken on the owner's behalf (cheap to reverse)
 
 | # | Decision | Why | Cost to reverse |
 |---|---|---|---|
-| A1 | Each scent is its own Product. Size is the variant. The picker is built generically over `ProductVariant.options`, so a second axis (for example colour) needs data only, no code | A scent gets its own page, photos and reviews. One selector is simpler for the shopper | Low |
-| A2 | Placeholder seed catalogue, local development only: three scents, each in 100 g at Rs 499 (MRP Rs 599), 200 g at Rs 799 (MRP Rs 949), 300 g at Rs 1,199 (MRP Rs 1,399) | Owner's range was Rs 450 to Rs 1,200 and prices are not final | None. Seed data never reaches production |
-| A3 | "Free above Rs 999" is implemented as subtotal >= Rs 999, so an order of exactly Rs 999 ships free | Matches how shoppers read it | One comparison operator |
-| A4 | Percentage discounts round down to a whole paisa. An order-level discount is split across lines in proportion to line subtotal (largest remainder), so line totals always sum to the order total | Needed for partial refunds and for GST later | Low |
-| A5 | Legacy Decimal money columns are still written as a mirror of the paise value, and never read | Django admin, old emails and the legacy Stripe path stay numerically correct. Nothing silently shows a wrong number | Low |
-| A6 | PayPal is hidden from checkout in G1, earlier than P12 says, because it would charge the rupee number in USD. Stripe is switched to `inr` and stays as the temporary test payment path until G3 | The store is not live, and one working test payment path is enough | Low |
-| A7 | Hosting: one small VPS in an Indian region running Caddy, gunicorn, `run_worker` and PostgreSQL, with the built frontend served from the same domain. Nightly database and media backup to off-site object storage. Budget roughly Rs 500 to Rs 900 a month; confirm current prices at G5 | Web, worker and database on one box is the cheapest shape for this stack. One origin avoids CORS and cookie problems | Medium |
-| A8 | The domain is assumed not yet bought. Buying it is an owner task at the start of G5 | Not confirmed by the owner | None |
+| Z1 | An already-expired batch is still never allocated to a new order (existing behaviour). `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` defaults to **0** for Ayura, so no other date rule applies, and undated batches sell normally | Shipping expired skincare to a customer is the one thing that should never happen silently. Everything else is a flag, not a block (Y12) | One line |
+| Z2 | A sample is a **hidden variant of the real product** (e.g. Face Scrub, "10 ml sample"), with price 0 and its own stock in the ledger. It never appears in the shop or the size picker | Conversion is then simply "later bought any full-size variant of the same product" | Low |
+| Z4 | The benefit line is at most 120 characters, entered by the owner. On phones (where hover doesn't exist) it shows under the title. The admin form shows a **soft warning** (it doesn't block saving) for words like cure, treat, heal, clinically proven, guaranteed, 100%, chemical-free, dermatologist | Your guardrail on disease claims, enforced where the copy is typed | Edit a word list |
+| Z5 | The COD fee is a separate line, shown on the payment choice and in the total **before** "Place order". Coupons don't discount it, and it doesn't count towards the free-shipping threshold | CLAUDE.md §8 drip pricing: every fee is shown before the customer commits | Low |
+| Z6 | Support is **asynchronous query threads** (like email in the account), not live chat | Free Render sleeps and has no websockets; a thread works when you reply hours later | Medium |
+| Z7 | A kit's price is set by the owner, not computed from its components. A kit can't contain another kit or a sample | Simple and predictable for the customer | Low |
+| Z8 | Ingredients, how to use and cautions are owner-typed text fields. Nothing is generated, and no "free from" or "natural" badge exists unless a later phase adds a stored field for it | Your guardrail: every claim is a stored fact the owner entered | Low |
+| Z9 | Copy and seed data do not call products "Ayurvedic" or "natural" until the professional answers L1 and L7 below | A non-AYUSH product described as Ayurvedic is exactly the kind of claim to clear first | Edit copy |
+
+## Legal questions for your professional (not decided in code)
+
+| # | Question |
+|---|---|
+| L1 | Does making cosmetics at home for sale need a cosmetics manufacturing licence (Cosmetics Rules, 2020), and what must the label then carry? |
+| L2 | GST: does selling to customers in other states from your own website require registration even below the turnover threshold? (The same question applies to Noore.) |
+| L3 | Legal Metrology: which declarations must appear on the product page (net quantity, MRP, maker's name and address, country of origin, consumer-care contact, manufacture/expiry date)? |
+| L4 | Consumer Protection (E-Commerce) Rules: grievance officer details and the return/refund disclosure the site must publish |
+| L5 | Trademark: "AYURA" is an existing Japanese skincare brand sold internationally. Is the name clear to use in India (cosmetics class)? |
+| L6 | Benefit lines: which wording is cosmetic ("for dry skin", "helps cleanse") and which is a drug claim ("helps with acne / hair fall / dandruff")? |
+| L7 | Can a product that isn't AYUSH-licensed be described as "Ayurvedic" anywhere, including the brand tagline? |
 
 ## How phases run
 
 Unchanged from CLAUDE.md: one branch per phase (`phase/<id>-<slug>`), database backup
-before any migration, full files, reversible migrations, every test shown failing first,
-`docs/BUILD_LOG.md` section with all ten headings, then stop for approval.
+before any migration, full files, one reversible migration per logical change, every new test
+shown failing first, a BUILD_LOG section with all ten headings, then stop for approval.
+Every phase starts by recording `pytest` (SQLite **and** PostgreSQL) and Playwright counts.
+Baseline at the fork: SQLite 197 passed / 2 skipped; PostgreSQL 199 passed; Playwright 20 passed.
 
-Every phase starts by running `python -m pytest -q` and `npx playwright test` and recording
-the counts as its baseline. The baseline before G0 was 80 passed, 1 skipped.
+Delivery: only changed files, each complete, with its repo path, marked NEW or MODIFIED. Each
+file is checked against the version last delivered before it goes out.
 
-Phase order: G0 (done) -> G1 -> G2 -> G3 -> G4 -> G4.5 -> G5.
-
----
-
-## G0 — Sync and repair (DONE, see BUILD_LOG)
-
-Repaired: products created after F-B had no variant; paid orders' reservations expired;
-nothing called the state machine so stock never left. Also fixed the `AddToCart` import
-casing, added MEDIA_ROOT test isolation, the pincode field, the PostgreSQL concurrency run
-and the Playwright smoke suite.
+Phase order: A → B → C → D → E → F.
 
 ---
 
-## G1 — Pricing
+## A — Fork and rebrand
 
-**Goal.** One server-side function decides what a customer pays, in INR, in integer paise.
+**Goal.** The repo is Ayura's, looks and reads like Ayura, and no shopper ever sees "Noore",
+"candle" or "vendor".
 
-**Read first.** `store/models.py`, `store/views.py`, `store/serializers.py`,
-`catalog/models.py`, `vendor/views.py`, `Cart.jsx`, `Checkout.jsx`, `ProductDetail.jsx`,
-and every file that references `service_fee`, `tax`, `currency_sign`, `usd` or `USD`.
+**Owner supplies before the palette checkpoint.** Logo (SVG preferred), favicon (or approval
+to derive it from the logo), font names, support email, WhatsApp number, tagline.
 
-**Step 0, before any code.** Compare every default variant's `price_paise` with
-`to_paise(product.price)`. F-B copied prices once, and the owner dashboard has edited
-`Product.price` since. If any pair differs, list them and stop: which one wins changes what
-a customer is charged.
+**Schema.** None.
 
-**Schema (additive, one migration per item, all reversible).**
+**Work.**
 
-1. `Cart`, `CartOrder`, `CartOrderItem`: one `<name>_paise` integer column beside each
-   existing Decimal money column. In addition, where not already covered by that rule:
-   `CartOrder.subtotal_paise`, `discount_paise`, `shipping_paise`, `tax_paise`,
-   `total_paise`, `coupon_code` (text snapshot); `CartOrderItem.unit_price_paise`,
-   `line_subtotal_paise`, `discount_paise`, `line_total_paise`.
-2. Data migration: backfill each paise column with `to_paise` of its Decimal twin. Reverse
-   is a no-op (the Decimal columns were never changed).
-3. `Coupon`: `kind` (PERCENT or FLAT, default PERCENT so existing rows keep their meaning),
-   `flat_off_paise`, `min_order_paise`, `max_total_uses` (null = unlimited),
-   `max_uses_per_customer` (default 1), `valid_from`, `valid_until` (null = open). The
-   existing `discount` integer stays as the percentage.
-4. New append-only model `CouponRedemption`: coupon, order, user (nullable), email,
-   phone_e164, discount_paise, created_at. Unique on (coupon, order).
-5. `ConfigSettings`: `shipping_flat_paise` (default 7900), `free_shipping_threshold_paise`
-   (default 99900), `tax_rate_bps` (default 0). Data migration sets `currency_sign` to the
-   rupee sign; reverse restores "$".
+1. Fork: exact commands to clone with history, set the new remote, and make a fresh
+   `backend/.env` with a **new** `DJANGO_SECRET_KEY` (never Noore's).
+2. Docs first:
+   - BUILD_LOG section "Reconstructed: commits 947ed05 to c879153 (4–11 Oct 2026)", from the diffs.
+   - CLAUDE.md: identity changed to Ayura, the stale §2/§3 lines fixed.
+   - This file becomes `docs/ROADMAP.md`; Noore's roadmap moves to the archive.
+3. Brand-neutral rename (Y15):
+   - `theme/noore.css` → `theme/brand.css`.
+   - Colour tokens get role names instead of colour names (`canvas`, `surface`, `muted`, `ink`, `subtle`, `accent`, `line`, …).
+   - `.noore-*` → `.ui-*`, `.noore-admin` → `.ui-admin` in `theme/admin.css`.
+   - `views/ui/noore.jsx` → `views/ui/kit.jsx`; every importer is updated.
+   - The `apiCache` key prefix becomes neutral.
+4. **Palette checkpoint (stop):** 2–3 Ayura palette and type options, each screenshotted on home,
+   product page and cart at 390 px and 1280 px. You pick one, then it's committed to `brand.css`.
+5. Store name, SEO and favicon:
+   - `index.html` title, description and theme-color.
+   - The API preconnect address is read from `%VITE_API_ORIGIN%`, so the next fork needs no edit there.
+   - `favicon.svg` placeholder until your file arrives.
+   - `STORE_NAME` defaults set to Ayura (backend settings, `.env.example`, `render.yaml`).
+6. Copy: every candle string in the audit becomes neutral store wording. Home, footer, About
+   and the policy pages are rewritten for personal care as clearly-marked placeholders
+   (`PLACEHOLDER_COPY` stays `true`). The policy pages gain empty, labelled sections for patch
+   test/cautions, opened products, and damaged or leaking items (pointing to Contact until F ships).
+   No "Ayurvedic", "natural", "chemical-free" or origin claim (Z9).
+7. `seed_ayura` (DEBUG only, idempotent), with categories Skincare, Haircare and Bodycare (flat
+   until B), about 8 placeholder products in two or three sizes each (e.g. face serum, face
+   scrub, moisturiser, hair oil, shampoo, body butter, body oil), opening stock through the ledger, coupon
+   `WELCOME10`. Every description is cosmetic language and marked `[PLACEHOLDER COPY]`.
+   `seed_noore` stays in the repo (rule 4; removal proposal) but Playwright switches to `seed_ayura`.
+8. Deploy: `render.yaml` (`ayura-api`), `keep-awake.yml` default URL, the `deploy/` units renamed
+   `ayura-*` with paths `/srv/ayura`. New `docs/DEPLOY-AYURA.md`: Vercel + Render + Neon +
+   Cloudinary + GitHub keep-awake, every env var listed with where its value comes from. It
+   also covers email: with no provider configured, no email is sent.
 
-**The pricing function.** New module `store/pricing.py`, the only place totals are
-computed. Cart view, checkout, order creation and (in G3) payment all call it.
-
-    quote(lines, coupon_code=None, customer=None) -> Quote
-
-- `lines` are (variant, qty). Unit price is `variant.price_paise`, read at call time.
-- `subtotal = sum(unit_price x qty)`.
-- Coupon validity: active, inside its date window, `subtotal >= min_order_paise`, total
-  redemptions under `max_total_uses`, this customer's redemptions under
-  `max_uses_per_customer`. A customer is matched by user id, or for a guest by normalised
-  email or `phone_e164`. Redemptions on cancelled orders do not count.
-- `discount`: PERCENT is `subtotal x percent // 100`; FLAT is `min(flat_off_paise, subtotal)`.
-  It applies to the whole order, not to the first matching line, and is split across lines
-  per A4.
-- `shipping = 0` if `subtotal - discount >= free_shipping_threshold_paise`, else
-  `shipping_flat_paise`. An empty cart has no shipping.
-- `tax`: prices are tax-inclusive. `tax = taxable x rate / (10000 + rate)` in basis points,
-  carved out of the price, never added on top. With `tax_rate_bps = 0` this is 0.
-- `total = subtotal - discount + shipping`. No service fee. No COD fee.
-- An invalid coupon returns the quote without a discount plus a reason the UI can show.
-
-The redemption row is written in the same transaction that creates the order, with the
-coupon row locked, so a capped coupon cannot be over-used by two simultaneous checkouts
-(covered by the PostgreSQL concurrency test).
-
-The order stores the quote as a snapshot. A later price change never alters an existing
-order.
-
-**Other work.**
-
-- Remove every read of `service_fee_*` and of `Tax.rate`. The models and columns stay.
-- Delete the `qty x rate` tax code path from logic.
-- Owner dashboard create and edit: the price field writes the default variant's
-  `price_paise` (and the legacy `Product.price` mirror, per A5).
-- Add `total_paise` to `core/signals.py` `TRACKED_FIELDS` for `CartOrder`.
-- API responses carry money as integer paise. New frontend helper
-  `frontend/src/utils/money.js` with `formatINR(paise)`. Remove every hardcoded "$" from
-  `Cart.jsx`, `Checkout.jsx`, `ProductDetail.jsx` and anywhere else found.
-- Cart and checkout show: item subtotal, discount (with coupon code), shipping (or "Free"),
-  total, and the line "Inclusive of all taxes". No tax row.
-- Stripe: currency `inr`, amount from `total_paise`. PayPal: hidden from checkout (A6).
+**Files touched.** `frontend/index.html`, `public/favicon.svg`, `src/main.jsx`, `src/App.jsx`,
+`src/theme/brand.css` (new, replaces `noore.css`), `src/theme/admin.css`, `src/views/ui/kit.jsx`
+(new, replaces `noore.jsx`), `src/utils/constants.js`, `apiCache.js`, `image.js`,
+`usePageTitle.js`, `src/layouts/LegacyStyles.jsx`, `views/base/StoreHeader.jsx`,
+`StoreFooter.jsx`, `NotFound.jsx`, `views/shop/home.jsx`, `Products.jsx`, `ProductDetail.jsx`,
+`Cart.jsx`, `Checkout.jsx`, `OrderConfirmation.jsx`, `views/customer/Orders.jsx`,
+`OrderDetail.jsx`, `BuyAgainButton.jsx`, `views/auth/login.jsx`, `register.jsx`, `logout.jsx`,
+`ClaimAccount.jsx`, `views/policy/About.jsx`, `PolicyPage.jsx`, `Contact.jsx`, `policies.js`,
+`views/owner/ShopNotReady.jsx`, `views/vendor/Dashboard.jsx`, `Sidebar.jsx`, `postcss.config.js`,
+`.env.example`, `playwright.config.js`, all five `e2e/*.spec.js`; `backend/backend/settings.py`,
+`.env.example`, `catalog/management/commands/seed_ayura.py` (new),
+`core/management/commands/seed_e2e.py`, `catalog/tests/test_storefront.py`, `tests/test_launch.py`;
+`render.yaml`, `.github/workflows/keep-awake.yml`, `deploy/*`, `docs/*`, `CLAUDE.md`.
 
 **Acceptance.**
 
-- A tampered client total is ignored; the stored order equals `quote()`.
-- Rs 920 cart pays Rs 79 shipping. Rs 999 cart ships free. Rs 1,100 cart with 10% off
-  (Rs 990 after discount) pays Rs 79 shipping.
-- A percentage coupon discounts every line; line totals sum to the order total to the paisa.
-- A flat coupon larger than the subtotal reduces the subtotal to 0, never below.
-- A coupon is refused when expired, under minimum, over its total cap, or over the
-  per-customer cap (logged-in and guest). Each refusal has its own message.
-- Cancelling an order frees its redemption.
-- No order contains a service fee. No "$" or "USD" is rendered anywhere in the storefront.
-- With `tax_rate_bps` set to 1800 in a test, tax is carved out and the total is unchanged.
-- Mirror check (A5): after every order write in the test suite (create, coupon applied,
-  quantity change, payment, cancel), a shared assertion walks every money column pair on
-  `CartOrder` and `CartOrderItem` and proves `to_paise(decimal_column) == paise_column`. A
-  dedicated test writes a paise value without its mirror and shows the assertion fails.
-- Migrations apply and roll back cleanly on a copy of the database.
-- Playwright: add to cart, apply coupon, see correct INR totals at checkout.
+- The logged-out crawl fails on "noore", "candle" or "vendor" in any text, title, alt, label or
+  link, and every title contains the store name.
+- No `.noore-` class or `ui/noore` import is left (checked by grep in a test).
+- `seed_ayura` refuses outside DEBUG, is idempotent, and no seeded text contains a banned claim
+  word (test).
+- pytest green on SQLite and PostgreSQL; the build passes; Playwright passes at 390 and 1280 px.
 
-**Known limitation (accepted).** A guest can evade the per-customer coupon cap by checking
-out with a different email and phone number. The cap is reliable only for logged-in
-customers. `max_total_uses` still bounds the total cost of any coupon, so set it on every
-coupon that matters. Record this in the G1 BUILD_LOG section under known gaps.
-
-**Stop and ask.** Any mismatch in Step 0. Any legacy money column whose meaning is unclear.
-
-**Not in G1.** Razorpay, COD selector, variant picker, price history.
+**Stop and ask.** The palette checkpoint. Any copy that would state a claim.
 
 ---
 
-## G2 — Storefront basics
+## B — Personal-care catalogue
 
-**Goal.** A shopper can choose a size, see honest stock and price information, and read
-the policies before paying.
+**Goal.** The owner can run a real personal-care catalogue from the admin area without
+touching Django admin.
 
-**Read first.** `catalog/models.py`, `catalog/admin.py`, `inventory/services.py`,
-`ProductDetail.jsx`, the product list and home views, `addToCart.jsx`, the footer and
-router.
+**Schema (additive, one reversible migration each).**
+
+1. `store.Category.parent` (nullable FK to itself). Cycles are refused in validation.
+2. `catalog.ProductVariant.net_quantity` (positive int, nullable) and `net_quantity_unit` (`g` or `ml`).
+   A data migration copies `weight_grams` into net quantity in grams; its reverse empties only the
+   values it wrote. `weight_grams` stays as the shipping weight.
+3. `store.Product`: `benefit_line` (120), `ingredients` (text), `how_to_use` (text), `cautions` (text).
+4. `addon.ConfigSettings`: `maker_name`, `maker_address`, `country_of_origin`,
+   `consumer_care_contact` (blank until supplied; L3).
+
+**Work.**
+
+- Admin area "Sizes" screen per product: add, edit or deactivate a size with label, net quantity,
+  unit, price, MRP, SKU and shipping weight. Writes go through the variant model, so price
+  history and audit still apply. Deactivating is allowed; deleting is not.
+- Admin area "Add stock" screen: made-on date, optional expiry date, quantity, unit cost →
+  `receive_production`. A batch's expiry date can be added or corrected later (audited).
+- Category management with parent selection; the shop filters by category and sub-category
+  (`/shop?category=<slug>` includes children); breadcrumb on the product page.
+- Product card shows the benefit line (hover on desktop, always visible on phones); soft-warning
+  word list in the add/edit product form (Z4).
+- Product page: "Net quantity 100 ml", ingredients, how to use, cautions, and a "Product
+  information" block (MRP inclusive of all taxes, maker, origin, consumer care) that shows only
+  the fields that are filled.
+
+**Files touched.** `backend/store/models.py`, `store/serializers.py`, `store/owner_views.py`,
+`store/admin.py`, `catalog/models.py`, `catalog/admin.py`, `inventory/admin.py`,
+`addon/models.py`, `api/urls.py`, the new migrations, `catalog/tests/test_catalogue_b.py` (new);
+`frontend/src/views/owner/OwnerSizes.jsx`, `OwnerStock.jsx`, `OwnerCategories.jsx` (new),
+`views/vendor/AddProduct.jsx`, `UpdateProduct.jsx`, `Sidebar.jsx`, `views/shop/ProductDetail.jsx`,
+`Products.jsx`, `views/ui/kit.jsx`, `src/App.jsx`, `e2e/catalogue.spec.js` (new).
+
+**Acceptance.** The owner creates "Face Serum" with 30 ml and 100 ml from the admin area, adds
+stock, and the shopper sees both sizes with "Net quantity 30 ml". A sub-category appears under
+its parent in the shop. A benefit line containing "cures" saves, but the form warns first.
+Migrations apply and roll back on a copy.
+
+**Stop and ask.** Anything that L3 makes mandatory but you haven't supplied.
+
+---
+
+## C — Owner-set shipping and COD fee
+
+**Goal.** The owner controls shipping and the COD fee from the admin area, and every charge
+is shown before the customer commits. **This changes what customers are charged; approved by
+the owner in writing on 11 Oct 2026 (Q9).**
 
 **Schema.**
 
-1. New append-only model `catalog.PriceHistory`: variant, price_paise, mrp_paise,
-   effective_from (aware datetime), actor. Written by a signal on every `ProductVariant`
-   price or MRP change, so admin, dashboard and shell edits are all captured.
-2. Data migration: one opening row per existing variant. Reverse deletes only those rows.
-3. Settings: `STRIKETHROUGH_REQUIRES_PRICE_HISTORY` (default False),
-   `PRICE_HISTORY_WINDOW_DAYS` (default 30), `LOW_STOCK_THRESHOLD` (default 5).
+1. `addon.ConfigSettings`: `shipping_enabled` (default True), `free_shipping_enabled` (default
+   True), `cod_enabled` (default True), `cod_fee_enabled` (default False), `cod_fee_paise` (default 0).
+2. `store.CartOrder.cod_fee_paise` (default 0; paise-only new column).
 
 **Work.**
 
-- Variant picker on the product page, rendered from the variants' `options`: one selector
-  per option key (A1). Selecting a variant updates price, MRP, stock status and the SKU sent
-  to the cart. The cart request sends the variant id. This also retires the swapped
-  size/colour arguments in `ProductDetail.jsx`. Legacy `Size` and `Color` rows are no longer
-  rendered; the rows stay.
-- Strike-through. Flag off: show MRP struck through and "N% off" whenever
-  `mrp_paise > price_paise`. Flag on: show a struck price only when the lowest price in the
-  window before the current price took effect is higher than the current price, and strike
-  that price. Never show a discount claim that the data does not support.
-- Stock indicator from `inventory.services.available_qty`: "In stock", "Only N left" (only
-  when N is real and at or below `LOW_STOCK_THRESHOLD`), "Sold out" (add-to-cart disabled).
-  No timers, no invented scarcity (CLAUDE.md section 8).
-- Shipping line on the product page and cart: "Shipping Rs 79. Free on orders of Rs 999 or
-  more", plus in the cart "Add Rs X more for free shipping", computed by `quote()`.
-- Policy pages: Shipping, Returns and Refunds, Privacy, Terms, Contact. Linked in the footer
-  and from checkout. The copy comes from the owner; the phase stops if it has not been
-  supplied. The contact page and footer carry the wa.me link and the support email.
-- `Product.stock_qty` becomes read-only in Django admin and the owner dashboard shows
-  ledger availability instead, so the stale field can no longer be edited into drift.
-- Management command `seed_noore` (idempotent, refuses to run when `DEBUG` is False):
-  creates the A2 placeholder catalogue with variants, options and opening stock through
-  `inventory.services.receive_production`, with `perishable` False.
+- `store/pricing.quote()` gains `payment_method`. It adds the COD fee only for COD;
+  `total = subtotal - discount + shipping + cod_fee`. It stays the only place totals are computed.
+- Checkout: the payment choice shows "Cash on delivery (+ ₹X fee)". Switching method re-quotes
+  and the total updates before "Place order". A Razorpay order is always created from the non-COD
+  quote.
+- Cart: "Shipping ₹X" or "Free"; the free-shipping nudge only when free shipping is enabled.
+- Order emails and order pages show the COD fee row when it's not zero.
+- Admin area "Store settings" screen for the five settings, audited.
+
+**Files touched.** `backend/addon/models.py`, `store/models.py`, `store/pricing.py`,
+`store/views.py`, `store/payment_views.py`, `store/order_state.py`, `store/emails.py`,
+`templates/email/order_update.*`, `store/owner_views.py`, `api/urls.py`, migrations,
+`tests/test_pricing_c.py` (new); `frontend/src/views/shop/Cart.jsx`, `Checkout.jsx`,
+`OrderConfirmation.jsx`, `views/customer/OrderDetail.jsx`, `views/owner/OwnerSettings.jsx` (new),
+`Sidebar.jsx`, `App.jsx`, `e2e/checkout.spec.js`.
 
 **Acceptance.**
 
-- Choosing 200 g shows the 200 g price and adds the 200 g variant to the cart.
-- A sold-out variant cannot be added; other sizes of the same candle still can.
-- Every price change, from any entry point, writes exactly one history row with the actor.
-  History rows cannot be updated or deleted.
-- Flag off and flag on each behave as specified, covered by tests.
-- "Only N left" matches `available_qty` and never appears above the threshold.
-- All five policy pages render and are linked from the footer and checkout.
-- Playwright: pick a variant, add to cart, open each policy page.
-
-**Stop and ask.** Policy copy, support email, WhatsApp number, and whether the owner wants
-any wording that amounts to a legal claim.
+- Fee off: COD total equals the prepaid total.
+- Fee ₹49 on: the COD total is ₹49 more, shown before "Place order", stored on the order, and
+  never in the Razorpay amount.
+- Shipping off means free; a free-shipping threshold edited in the admin area applies on the next quote.
+- An existing order never changes when the settings change.
+- The paise mirror check still passes, and a tampered client total is ignored.
 
 ---
 
-## G3 — Razorpay test mode and COD
+## D — Dispatch checks, free samples, batch lookup
 
-**Goal.** A customer can pay by UPI, card or netbanking through Razorpay, or choose cash on
-delivery. An order becomes "paid" only when Razorpay's webhook says so.
-
-**Blocked on the owner (rule 12).** Before this phase starts, the owner supplies: Razorpay
-test key id and secret; the webhook secret; the current official documentation pages (or
-captured test-mode samples) for order creation, the checkout options, payment signature
-verification, and the webhook events and their payloads. No request, response or webhook
-shape is written from memory.
-
-**Read first.** `store/order_state.py`, `store/views.py`, `core/idempotency.py`,
-`core/jobs.py`, `inventory/services.py`, `Checkout.jsx`, and the existing Stripe and PayPal
-views.
+**Goal.** Nothing leaves expired or undated without the owner seeing it, and gift samples are
+sent and measured.
 
 **Schema.**
 
-1. `CartOrder`: `cod_confirmed_at` and `cod_confirmed_by` (nullable), if G0 did not add
-   them; `payment_provider`; the provider's order id and payment id fields as named in the
-   supplied documentation.
-2. `CartOrder.oid`: confirm it is unique. If not, check for duplicates, report them, then
-   add a unique constraint.
+1. `inventory.MovementKind.SAMPLE_OUT` (outbound).
+2. `catalog.ProductVariant.is_sample` (default False; hidden from the shop and the size picker).
+3. New `store.OrderSample`: order, variant, qty, added_by, added_at. Unique on (order, variant).
+4. `store.CartOrder.sample_decision`: `UNDECIDED` / `NONE` / `ADDED`.
 
 **Work.**
 
-- Provider seam `store/payments/`: one interface (create payment, verify return, handle
-  webhook) with a Razorpay implementation. Stripe and PayPal stay behind it, disabled by
-  `ENABLED_PAYMENT_PROVIDERS`, and are not shown at checkout (P12).
-- Checkout gets a payment-method selector: "UPI / Card / Netbanking" (default) and "Cash on
-  delivery". UPI is presented first inside the Razorpay checkout, configured as the supplied
-  documentation describes.
-- Prepaid flow: the server creates the provider order for `total_paise` in INR from the
-  stored quote; the browser opens the Razorpay checkout; on return the page shows
-  "confirming payment" and polls the order. Only the webhook handler calls `mark_paid`,
-  after verifying the signature, checking amount and currency against the order, and
-  `claim_event` inside the same transaction. A duplicate webhook changes nothing.
-- A periodic `core.jobs` job reconciles orders still pending after a few minutes by asking
-  the provider for their status, so a missed webhook cannot strand a paid order.
-- Late payment: if payment arrives after the stock hold expired, the handler tries to
-  reserve again. If stock is gone the order is flagged for the owner to refund; it is never
-  silently marked paid and unshippable.
-- COD flow: the order is placed with `payment_method = COD` and its reservation is kept (not
-  subject to the cart TTL). The owner confirms by phone or WhatsApp, then presses
-  "Confirm COD" on the order in the owner dashboard, which sets `cod_confirmed_at` through
-  the state machine and is audited. Only then can the order be dispatched. On delivery the
-  owner marks it paid through `mark_paid`.
-- Refunds are issued by the owner in the Razorpay dashboard and recorded on the order
-  through the state machine. No refund API in this phase.
-- Order emails through `core.jobs`: order placed (with COD or payment-pending wording),
-  payment received, shipped with tracking, cancelled. Each is sent once (dedupe key).
-- After purchase, a guest sees "Create an account to track this order". The set-password
-  link goes to the order's email address and, once used, attaches that email's guest orders
-  to the new account. Orders are never attached to an unverified email.
-- Local development needs a public tunnel for the webhook; document the exact steps in
-  BUILD_LOG.
+- Handle orders: for each line, the batch(es) FEFO allocated, with "Expired", "No expiry date"
+  or "Expires 12 Mar 2027". These are flags, not blocks (Y12). The owner can enter a missing
+  expiry date right there (audited).
+- Order page "Gift samples":
+  - Choose "No samples" or add sample variants with quantities.
+  - Stock is reserved now and consumed as `SAMPLE_OUT` on dispatch.
+  - Nothing is ever charged; `quote()` doesn't see samples.
+  - Never shown to the customer (Y19): not on the order page, not in any email.
+- "Samples" report: per sample product, how many orders got it, and how many of those customers
+  (matched by account, or the same email or phone) later placed a non-cancelled order with a
+  full-size variant of that product, with the conversion % and the list of those orders.
+- "Expiry" screen: batches with stock that are expired, expiring within `EXPIRY_ALERT_DAYS`, or
+  have no date; write-off through the ledger (`DAMAGE_OUT`), never an edit.
+- Batch lookup ("recall"): type a batch code to see every order that received it.
+- `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` default becomes 0 (Z1), with a test that an undated or
+  in-date batch is allocated and an expired one never is.
+
+**Files touched.** `backend/inventory/models.py`, `inventory/services.py`, `catalog/models.py`,
+`store/models.py`, `store/order_state.py`, `store/owner_views.py`, `store/serializers.py`,
+`store/emails.py`, `api/urls.py`, migrations, `tests/test_dispatch_samples.py` (new);
+`frontend/src/views/owner/OwnerOrderDetail.jsx`, `OwnerOrders.jsx`, `OwnerSamples.jsx`,
+`OwnerExpiry.jsx` (new), `Sidebar.jsx`, `App.jsx`, `views/customer/OrderDetail.jsx`,
+`e2e/owner.spec.js` (new).
 
 **Acceptance.**
 
-- A forged or unsigned webhook is rejected and changes nothing.
-- The same webhook delivered twice marks the order paid once and sends one email.
-- A webhook whose amount or currency does not match the order is rejected.
-- Returning from checkout without a webhook leaves the order unpaid until the webhook or the
-  reconcile job confirms it.
-- A COD order cannot be dispatched before "Confirm COD" and can after.
-- Stock leaves the ledger exactly once per dispatched order, prepaid or COD.
-- Stripe and PayPal do not appear at checkout; their code and tests remain.
-- No key or secret appears in code, logs or the frontend bundle beyond the public key id.
-- Playwright: COD checkout end to end; prepaid checkout up to the provider hand-off.
-
-**Stop and ask.** Any payload shape not in the supplied documentation. Any ambiguity about
-which event means "paid".
+- An order whose batch has passed its expiry shows "Expired" on Handle orders.
+- Samples add stock movements exactly once on dispatch, change no total, and can't be added to a
+  cancelled order.
+- A customer who got a Face Scrub sample and later buys Face Scrub 100 ml counts as converted;
+  buying something else does not.
+- Batch lookup lists exactly the orders with `SALE_OUT` or `SAMPLE_OUT` from that batch.
 
 ---
 
-## G4 — Reviews and one-tap reorder
+## E — Kits from component stock
 
-**Goal.** Real buyers can review what they received, and a returning customer can buy the
-same order again in one tap.
-
-**Read first.** The existing `Review` model, its serializers and views, the customer order
-views, `ProductDetail.jsx`, the account order pages.
+**Goal.** A kit (e.g. "Face routine: cleanser + serum + moisturiser") is sold as one item and
+draws stock from its components.
 
 **Schema.**
 
-1. `Review`: `order_item` (nullable FK to `CartOrderItem`), `status` (PENDING, APPROVED,
-   REJECTED), `moderated_by`, `moderated_at`. Data migration marks existing reviews
-   APPROVED so nothing vanishes; the owner can reject demo ones. New reviews start PENDING.
-2. Unique constraint: one review per user per product.
+1. New `catalog.KitComponent`: kit_variant, component_variant, qty (≥1). Unique pair. A kit or a
+   sample can't be a component.
+2. `catalog.ProductVariant.is_kit` (default False).
 
 **Work.**
 
-- Eligibility: the signed-in user owns an order with a delivered line for that product. The
-  server checks; the UI only shows the form when eligible. Guests are prompted to create an
-  account through the G3 link.
-- Public lists and the product's average rating use APPROVED reviews only, and expose name
-  and avatar only (F-A guarantee).
-- Owner moderation queue in the owner dashboard: approve or reject, audited. Rejecting is
-  for abuse and spam, not for low ratings; the screen says so.
-- One review-request email a set number of days after delivery (`REVIEW_REQUEST_DELAY_DAYS`,
-  default 7), through `core.jobs`, once per order. No reminders.
-- Reorder: `POST` on an order the caller may access adds each line's variant to the cart at
-  today's price and today's availability, through the normal cart path (so stock is
-  reserved). The response lists what was added, what was reduced and what is sold out or
-  discontinued. It never places an order by itself. "Buy again" appears on the order detail
-  page and in the account order list.
+- A kit's availability is the minimum over its components of `available_qty // qty`.
+- Adding a kit to the cart reserves every component (FEFO) in one transaction, and all or
+  nothing; release, expiry and dispatch follow the components. The order line is the kit
+  variant at the kit's price.
+- Admin area kit builder.
+- The product page lists what's inside.
+
+**Files touched.** `backend/catalog/models.py`, `catalog/admin.py`, `inventory/services.py`,
+`store/views.py` (`put_in_cart`), `store/order_state.py`, `store/serializers.py`,
+`store/owner_views.py`, `api/urls.py`, migrations, `inventory/tests/test_kits.py` (new);
+`frontend/src/views/owner/OwnerKits.jsx` (new), `views/shop/ProductDetail.jsx`,
+`Sidebar.jsx`, `App.jsx`, `e2e/kits.spec.js` (new).
 
 **Acceptance.**
 
-- A user without a delivered line for the product cannot post a review (403).
-- A PENDING or REJECTED review never appears publicly and never affects the average.
-- A second review for the same product by the same user is refused.
-- Reorder of a three-line order with one line sold out adds two lines and reports the third.
-- Reorder uses current prices, not the old order's prices.
-- Playwright: reorder from order history lands in a correct cart.
+- Kit availability tracks its scarcest component.
+- Two shoppers racing for the last component can't both get it (PostgreSQL concurrency test).
+- Cancelling returns every component.
+- Dispatch consumes each component exactly once.
+- A kit with a sold-out component is "Sold out".
 
 ---
 
-## G4.5 — Brand and storefront
+## F — Customer support queries
 
-**Goal.** The storefront looks and reads like Noore Candles, and a shopper never meets
-marketplace language.
+**Goal.** A customer can report a problem (damaged, leaking, anything else), optionally with
+photos, and the owner answers from the admin area.
 
-**Owner task before this phase starts.** Decide whether the existing v0 Noore Candles
-design becomes the storefront skin or this storefront gets its own design. Supply the logo,
-favicon, colour palette, typefaces, home and About copy, and product photos. The phase does
-not start without this decision.
+**Schema.** New app `support`:
 
-**Approval on record.** The owner approved in writing on 3 Oct 2026: removing the header
-"Vendor" dropdown, moving the owner dashboard to `/admin-area/`, and pulling removal
-proposal R21 forward. This satisfies rule 4 for those items only. R1-R20 stay unapproved.
+- `Query`: user nullable, email, phone_e164, order nullable, subject, status OPEN / ANSWERED / CLOSED, timestamps.
+- `QueryMessage`: author CUSTOMER / OWNER, body.
+- `QueryPhoto`: image, max 3 per message, type and size checked.
 
-**Read first.** `docs/archive/ROADMAP-v1.md` Appendix E (the exact wording of R21), the
-storefront header and footer, the router, `Dashboard.jsx`, every file under the vendor
-views folder, `ProductDetail.jsx`, `Products.jsx`, `Cart.jsx`, `Search.jsx`, `index.html`,
-and the global styles. If R21 as written covers more or less than the four files named
-here, stop and report the difference.
-
-**Schema.** None expected. No backend model, field or endpoint is renamed or removed.
+`support/tests` is added to `pytest.ini` testpaths (CLAUDE.md trap).
 
 **Work.**
 
-- Branding: page title and meta description, favicon, logo, colour tokens and typography
-  applied through one theme file, so the skin can change without touching components.
-- Header: remove the "Vendor" dropdown. Staff users see a single "Admin" link; nobody else
-  sees any link to the dashboard.
-- Owner dashboard moves to `/admin-area/` (distinct from Django's `/admin/`). The route is
-  shown only when the signed-in user is staff. This is a convenience gate; the API keeps
-  enforcing `IsStaffOwner`, which is the real protection. Old `/vendor/...` routes redirect
-  staff to the matching `/admin-area/...` page and show the normal not-found page to
-  everyone else.
-- D17: `Dashboard.jsx` no longer redirects anyone to `/vendor/register/`. A non-staff
-  visitor to a dashboard URL gets the not-found page. The register page is unreachable
-  from the storefront.
-- R21: strip vendor names, vendor links, "sold by" lines and shop references from
-  `ProductDetail.jsx`, `Products.jsx`, `Cart.jsx` and `Search.jsx`.
-- Home page, About page, and the product photo layout (gallery on the product page,
-  consistent image ratio on listing cards).
-- Dashboard screens keep working as they are; restyling them is not in scope.
+- "Get help" on the contact page and "Report a problem" on each order.
+- Signed-in customers see their threads. Guests reach a thread through a signed link sent to
+  the order's email (the same pattern as the G3 account link), or by order id + email.
+- Owner inbox with unread count; reply, close; audited.
+- Emails go through `core.jobs` when a provider is configured; the thread works without email.
+- Throttle scope `support`.
+
+**Files touched.** `backend/support/*` (new app), `backend/backend/settings.py`, `api/urls.py`,
+`pytest.ini`, `store/emails.py`; `frontend/src/views/support/*` (new),
+`views/owner/OwnerSupport.jsx` (new), `views/customer/OrderDetail.jsx`,
+`views/policy/Contact.jsx`, `policies.js`, `Sidebar.jsx`, `App.jsx`, `e2e/support.spec.js` (new).
 
 **Acceptance.**
 
-- Logged out, no occurrence of the word "vendor" (any case) is reachable: not in rendered
-  text, link targets, page titles, image alt text or any route a shopper can navigate to.
-  A Playwright test crawls every storefront link from the home page and asserts this.
-- A logged-in non-staff customer never sees a dashboard link and is never redirected to
-  `/vendor/register/`.
-- A staff user reaches every dashboard screen under `/admin-area/`; products, orders,
-  coupons, COD confirmation and review moderation all still work. Existing dashboard tests
-  stay green.
-- Title, favicon and logo show Noore Candles on every page.
-- Home, About, product list and product page pass the Playwright smoke at mobile and
-  desktop widths.
+- A customer can't read another customer's thread (403).
+- A guest link only opens its own thread and expires.
+- A photo that isn't an image is refused.
+- An owner reply marks the thread ANSWERED and appears to the customer.
 
-**Stop and ask.** The design decision above. Whether API paths containing `vendor`
-(visible only in the browser's network tab, not in the page) must also change: renaming an
-endpoint is outside this approval. Anything in R21 that goes beyond the four named files.
+**Stop and ask.** The grievance-officer wording (L4).
 
 ---
 
-## G5 — Launch readiness
+## Ranked for later (not scheduled)
 
-**Goal.** The store is live on its own domain, taking real payments, with backups that have
-been restored at least once.
+1. Ingredient search (search also matches the B `ingredients` field). Small, after B.
+2. "Pairs well with": owner-set links between products.
+3. Opt-in "running low?" reorder reminder from pack size and order date (needs an email provider).
+4. WhatsApp order updates (reuses Noore's deferred Meta Cloud API plan).
+5. Weight-based shipping for oils and liquids (`weight_grams` already exists).
+6. Ingredient glossary page.
+7. Stored "free from" / allergen flags, each one an owner-entered fact.
 
-**Owner tasks, started early because they take days.**
-
-- Buy the domain.
-- Complete Razorpay KYC and get live keys.
-- Decide the transactional email provider and verify the sending domain (SPF, DKIM).
-- Supply final product photos, prices, MRP, weights and policy copy.
-- Enter real unit cost on each batch (opening batches have cost 0), so margin is meaningful.
-- Ask a CA or lawyer about: mandatory product declarations on the listing (MRP, net
-  quantity, maker's address, country of origin), the contact or grievance details that must
-  be published, and privacy obligations. These are legal questions and are not decided in
-  code.
-
-**Work.**
-
-- Production settings: `DEBUG` False, `ALLOWED_HOSTS`, CSRF and CORS origins, secure
-  cookies, HSTS. Every variable in `.env.example`.
-- PostgreSQL in production, starting from a fresh database (migrations only), not from the
-  seeded SQLite file. The owner creates the shop and real catalogue; `claim_shop` attaches
-  it. `seed_noore` cannot run there.
-- Server per A7: Caddy with automatic HTTPS, gunicorn, `run_worker` as a service that
-  restarts on failure, built frontend served from the same domain, media on disk.
-- Shared cache for throttling (Django database cache) so rate limits hold across processes.
-- Backups: nightly `pg_dump` plus media to off-site storage, retained 14 days. A restore
-  into a scratch database is performed and written up in BUILD_LOG. A backup that has never
-  been restored does not count.
-- Run the PostgreSQL concurrency test against the production database engine version.
-- Razorpay live keys and live webhook. One real low-value order placed, paid, dispatched,
-  delivered and refunded.
-- Error reporting for the backend and uptime check on the home page and API.
-- `npm audit`: triage, fix what touches production code paths, document the rest.
-- Deploy runbook in `docs/DEPLOY.md`: deploy, roll back, restore, rotate a secret.
-- Robots, sitemap, page titles and social preview for product pages.
-
-**Acceptance.**
-
-- The site loads on the domain over HTTPS; HTTP redirects.
-- A real order completes end to end and its emails arrive in an inbox, not spam.
-- Restarting the server brings web and worker back without manual steps.
-- The restore drill is documented with timings.
-- The full pytest suite passes against PostgreSQL. Playwright passes against production
-  with a COD order that is then cancelled.
-
----
-
-## Deferred (not scheduled)
-
-GST invoices and tax lines; WhatsApp Cloud API; subscriptions; grievance module; margin and
-cohort dashboard; serviceable pincodes and COD limits; removal of multi-vendor residue
-(R1-R20; R21 is done in G4.5); removal of Stripe and PayPal code; dropping `service_fee_*`, `Tax`,
-`Product.stock_qty`, legacy Decimal money columns and legacy `Size` / `Color`; shipping
-aggregator integration and automatic tracking; a refund API; a database-level append-only
-guard; removing the per-request `Meta.depth` mutation in serializers.
-
-Each of these needs its own written approval and its own phase.
-
----
-
-## Appendix A — Standing rules summary
-
-See CLAUDE.md. Where this roadmap and CLAUDE.md disagree, stop and ask.
-
-## Appendix B — Data-model map (after G0)
-
-| Area | Models | Money | Notes |
-|---|---|---|---|
-| Catalogue | `store.Product`, `catalog.ProductVariant` | Variant: paise. Product: legacy Decimal, not read after G1 | One default variant per product. `perishable` stays False |
-| Inventory | `inventory.Batch`, `StockMovement` (append-only), `StockReservation` | `cost_per_unit_paise` | Stock is derived from the ledger |
-| Orders | `store.Cart`, `CartOrder`, `CartOrderItem` | Legacy Decimal; paise columns added in G1 | Status only through `store/order_state.py` |
-| Pricing | `store.Coupon`, `ConfigSettings`, `Tax`; from G1 `CouponRedemption`; from G2 `catalog.PriceHistory` | Paise for new fields | `Tax` and `service_fee_*` unread after G1 |
-| Platform | `core.AuditLog`, `ProcessedEvent`, `Job` | n/a | Audit and idempotency are append-only |
-| Legacy | `vendor.*`, `Size`, `Color`, Stripe and PayPal views | n/a | Left in place |
-
-## Appendix C — Order state-machine tables
-
-Unchanged. The tables are in `docs/archive/ROADMAP-v1.md`, Appendix C, and the enforced
-version is `backend/store/order_state.py`. If the two differ, the code is what runs: stop
-and report the difference. G3 adds the COD-confirmed step and must update the archived
-table's successor here when it does.
-
-## Appendix D — Bug register
-
-| # | Bug | Fixed in |
-|---|---|---|
-| D1 | Currency is USD (Stripe, PayPal, `currency_sign`, hardcoded "$") | G1 |
-| D2 | Tax computed as qty x rate | G1 |
-| D3 | Coupon discounts the first line only, is reusable without limit, usage unrecorded | G1 |
-| D4 | 5% service fee added to every order | G1 |
-| D5 | Checkout maths uses legacy Decimal rupees | G1 |
-| D6 | Default variant price can differ from `Product.price` | G1, Step 0 |
-| D7 | No variant picker; `ProductDetail.jsx` passes size and colour swapped | G2 |
-| D8 | No stock indicator, no policy pages | G2 |
-| D9 | `Product.stock_qty` can be edited in admin and drift from the ledger | G2 |
-| D10 | No Razorpay, no COD, no payment-method selector | G3 |
-| D11 | Nothing sets `cod_confirmed_at`, so no COD order can be dispatched | G3 |
-| D12 | `CartOrder.oid` uniqueness not guaranteed | G3 |
-| D13 | Reviews are unmoderated and not tied to a purchase | G4 |
-| D14 | Throttle counters are per process | G5 |
-| D15 | Opening batches have unit cost 0 | G5, owner data task |
-| D16 | 56 `npm audit` findings | G5 |
-| D17 | `Dashboard.jsx` redirects ordinary customers to `/vendor/register/` | G4.5 |
-| D18 | Serializers mutate `Meta.depth` per request | Deferred |
-| D19 | Phone normalisation accepts Indian mobiles only | Accepted (India-only store) |
-| D20 | Nested rows get new ids on every product save | Accepted |
-
-## Appendix E — Vendor-named code and removal proposals
-
-Proposals R1-R21 are listed in `docs/archive/ROADMAP-v1.md`, Appendix E. R21 (vendor
-references in the storefront) was approved by the owner on 3 Oct 2026 and is performed in
-G4.5, together with removing the header "Vendor" dropdown. R1-R20 are unchanged and not
-approved; nothing in this roadmap performs any of them. New candidates raised by this
-re-scope, to be added to that list when it is next reviewed: `ConfigSettings.service_fee_*`,
-the `Tax` model, legacy Decimal money columns, legacy `Size` and `Color`, Stripe and PayPal
-code.
+Pushed back:
+- The routine quiz and reviews filtered by skin or hair type both need the filter attributes
+  you dropped in Y5. Revisit if those come back.
+- "Clinically proven" or "dermatologist" badges need evidence fields and a professional's
+  sign-off.
+- Before/after imagery: never.

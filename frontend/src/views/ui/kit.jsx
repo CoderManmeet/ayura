@@ -5,7 +5,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { formatINR } from '../../utils/money';
 import { imageUrl, SIZES } from '../../utils/image';
 
-// Small shared pieces of the Noore storefront design.
+// Small shared pieces of the storefront design. Their look comes from src/theme/brand.css.
 
 // A product photo. If the file is missing or fails to load, nothing is drawn (the coloured
 // block behind it remains), never the browser's broken-image icon.
@@ -27,10 +27,10 @@ export function Photo({ src, alt = '', className = '', width = SIZES.card, prior
 
 export function PageIntro({ eyebrow, title, children }) {
     return (
-        <div className="border-b border-line bg-sand px-5 py-14 md:px-10 md:py-20">
+        <div className="border-b border-line bg-panel px-5 py-14 md:px-10 md:py-20">
             <div className="mx-auto max-w-[1440px]">
-                {eyebrow && <p className="noore-eyebrow mb-4">{eyebrow}</p>}
-                <h1 className="max-w-3xl font-serif text-4xl leading-[.95] md:text-6xl">{title}</h1>
+                {eyebrow && <p className="ui-eyebrow mb-4">{eyebrow}</p>}
+                <h1 className="max-w-3xl font-display text-4xl leading-[.95] md:text-6xl">{title}</h1>
                 {children}
             </div>
         </div>
@@ -39,7 +39,7 @@ export function PageIntro({ eyebrow, title, children }) {
 
 export function BackLink({ to = '/shop', children = 'Back' }) {
     return (
-        <Link to={to} className="mb-8 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-stone">
+        <Link to={to} className="mb-8 inline-flex items-center gap-2 ui-caption text-subtle">
             <ArrowLeft className="size-3" aria-hidden="true" /> {children}
         </Link>
     );
@@ -49,15 +49,15 @@ export function BackLink({ to = '/shop', children = 'Back' }) {
 export function Field({ id, label, value, onChange, type = 'text', autoComplete, inputMode, maxLength, readOnly = false, required = false }) {
     return (
         <div className="flex flex-col gap-2">
-            <label htmlFor={id} className="noore-label">{label}</label>
+            <label htmlFor={id} className="ui-label">{label}</label>
             <input id={id} type={type} value={value} onChange={onChange} autoComplete={autoComplete} inputMode={inputMode}
-                maxLength={maxLength} readOnly={readOnly} required={required} className="noore-input" />
+                maxLength={maxLength} readOnly={readOnly} required={required} className="ui-input" />
         </div>
     );
 }
 
 export function Loading({ children = 'Loading...' }) {
-    return <div className="px-5 py-24 text-center text-sm text-stone" role="status">{children}</div>;
+    return <div className="px-5 py-24 text-center text-sm text-subtle" role="status">{children}</div>;
 }
 
 // ---------------------------------------------------------------------- waiting, by design
@@ -68,19 +68,19 @@ export function Loading({ children = 'Loading...' }) {
 export function CardSkeleton({ inRail = false }) {
     return (
         <div className={`${inRail ? 'w-[72vw] shrink-0 sm:w-[46vw] lg:w-[23rem]' : ''}`} aria-hidden="true">
-            <div className="noore-shimmer aspect-[4/5] bg-oat" />
+            <div className="ui-shimmer aspect-[4/5] bg-muted" />
             <div className="flex items-start justify-between gap-3 pt-4">
-                <div className="noore-shimmer h-5 w-1/2 bg-oat" />
-                <div className="noore-shimmer h-5 w-16 bg-oat" />
+                <div className="ui-shimmer h-5 w-1/2 bg-muted" />
+                <div className="ui-shimmer h-5 w-16 bg-muted" />
             </div>
-            <div className="noore-shimmer mt-4 h-11 w-full bg-oat" />
+            <div className="ui-shimmer mt-4 h-11 w-full bg-muted" />
         </div>
     );
 }
 
 export function RailSkeleton({ count = 4 }) {
     return (
-        <div className="-mx-5 flex gap-4 overflow-hidden px-5 md:mx-0 md:px-0" role="status" aria-label="Loading candles">
+        <div className="-mx-5 flex gap-4 overflow-hidden px-5 md:mx-0 md:px-0" role="status" aria-label="Loading products">
             {Array.from({ length: count }, (unused, index) => <CardSkeleton key={index} inRail />)}
         </div>
     );
@@ -88,7 +88,7 @@ export function RailSkeleton({ count = 4 }) {
 
 export function GridSkeleton({ count = 8 }) {
     return (
-        <div className="grid gap-x-4 gap-y-12 sm:grid-cols-2 lg:grid-cols-4" role="status" aria-label="Loading candles">
+        <div className="grid gap-x-4 gap-y-12 sm:grid-cols-2 lg:grid-cols-4" role="status" aria-label="Loading products">
             {Array.from({ length: count }, (unused, index) => <CardSkeleton key={index} />)}
         </div>
     );
@@ -99,7 +99,7 @@ export function GridSkeleton({ count = 8 }) {
 export function WakingNotice({ show }) {
     if (!show) return null;
     return (
-        <p className="mt-6 text-xs leading-6 text-stone" role="status" data-testid="waking-notice">
+        <p className="mt-6 text-xs leading-6 text-subtle" role="status" data-testid="waking-notice">
             Starting the shop&rsquo;s server &mdash; the first visit after a quiet spell takes a few seconds.
             Everything after this is quick.
         </p>
@@ -151,7 +151,7 @@ export function ProductRail({ children, label = 'Products' }) {
         node.scrollBy({ left: direction * step, behavior: 'smooth' });
     };
 
-    const arrow = 'flex size-10 items-center justify-center border border-line-strong bg-cream transition-opacity disabled:pointer-events-none disabled:opacity-0';
+    const arrow = 'flex size-10 items-center justify-center border border-line-strong bg-canvas transition-opacity disabled:pointer-events-none disabled:opacity-0';
     const hasOverflow = !(atStart && atEnd);
 
     return (
@@ -162,17 +162,17 @@ export function ProductRail({ children, label = 'Products' }) {
                 aria-label={label}
                 tabIndex={0}
                 data-testid="product-rail"
-                className="noore-rail -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0"
+                className="ui-rail -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:px-0"
             >
                 {children}
             </div>
             {hasOverflow &&
                 <div className="pointer-events-none absolute inset-y-0 left-0 right-0 hidden items-center justify-between md:flex">
-                    <button type="button" aria-label="Previous candles" onClick={() => nudge(-1)} disabled={atStart}
+                    <button type="button" aria-label="Previous products" onClick={() => nudge(-1)} disabled={atStart}
                         className={`${arrow} pointer-events-auto -ml-5`} data-testid="rail-prev">
                         <ArrowLeft className="size-4" aria-hidden="true" />
                     </button>
-                    <button type="button" aria-label="More candles" onClick={() => nudge(1)} disabled={atEnd}
+                    <button type="button" aria-label="More products" onClick={() => nudge(1)} disabled={atEnd}
                         className={`${arrow} pointer-events-auto -mr-5`} data-testid="rail-next">
                         <ArrowRight className="size-4" aria-hidden="true" />
                     </button>
@@ -189,21 +189,21 @@ export function ProductCard({ product, inRail = false }) {
     const strike = variants.find((variant) => variant.is_default)?.strikethrough;
     return (
         <article className={`group ${inRail ? 'w-[72vw] shrink-0 snap-start sm:w-[46vw] lg:w-[23rem]' : ''}`} data-testid="product-card">
-            <Link to={`/detail/${product.slug}`} className="relative block overflow-hidden bg-oat">
+            <Link to={`/detail/${product.slug}`} className="relative block overflow-hidden bg-muted">
                 <div className="aspect-[4/5]">
                     {<Photo src={product.image} alt={product.title} width={SIZES.card} className="size-full object-cover transition-transform duration-700 group-hover:scale-105" />}
                 </div>
-                {soldOut && <span className="absolute left-3 top-3 bg-cream px-2 py-1 text-[9px] uppercase tracking-widest">Sold out</span>}
+                {soldOut && <span className="absolute left-3 top-3 bg-canvas px-2 py-1 ui-caption">Sold out</span>}
             </Link>
             <div className="flex items-start justify-between gap-3 pt-4">
-                <h3 className="font-serif text-xl"><Link to={`/detail/${product.slug}`}>{product.title}</Link></h3>
+                <h3 className="font-display text-xl"><Link to={`/detail/${product.slug}`}>{product.title}</Link></h3>
                 <p className="shrink-0 text-sm">
-                    {variants.length > 1 ? <span className="text-stone">From </span> : null}
+                    {variants.length > 1 ? <span className="text-subtle">From </span> : null}
                     {product.price_from_paise != null ? formatINR(product.price_from_paise) : ''}
-                    {variants.length <= 1 && strike && <s className="ml-2 text-stone">{formatINR(strike.compare_at_paise)}</s>}
+                    {variants.length <= 1 && strike && <s className="ml-2 text-subtle">{formatINR(strike.compare_at_paise)}</s>}
                 </p>
             </div>
-            <Link to={`/detail/${product.slug}`} className="noore-btn-outline mt-4 w-full">{variants.length > 1 ? 'Choose a size' : 'View candle'}</Link>
+            <Link to={`/detail/${product.slug}`} className="ui-btn-outline mt-4 w-full">{variants.length > 1 ? 'Choose a size' : 'View product'}</Link>
         </article>
     );
 }

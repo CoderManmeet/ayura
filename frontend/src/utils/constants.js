@@ -9,4 +9,6 @@ export const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@exam
 // Digits only, with country code and no "+", as wa.me expects (e.g. 919876543210).
 export const WHATSAPP_NUMBER = (import.meta.env.VITE_WHATSAPP_NUMBER || '910000000000').replace(/\D/g, '')
 export const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`
-export const STORE_NAME = import.meta.env.VITE_STORE_NAME || 'Noore Candles'
+export const STORE_NAME = import.meta.env.VITE_STORE_NAME || 'Ayura'
+// The brand's one-line promise, shown on the home page and in the footer.
+export const TAGLINE = import.meta.env.VITE_TAGLINE || 'If we wouldn\u2019t use it at home, we don\u2019t bottle it.'

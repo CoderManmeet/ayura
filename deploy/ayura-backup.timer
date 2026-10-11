@@ -1,6 +1,6 @@
 # systemd timer: run the backup every night at 02:30 server time (and catch up after downtime).
 [Unit]
-Description=Noore store - nightly backup
+Description=Ayura store - nightly backup
 
 [Timer]
 OnCalendar=*-*-* 02:30:00

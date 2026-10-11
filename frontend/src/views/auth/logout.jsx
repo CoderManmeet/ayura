@@ -14,12 +14,12 @@ const Logout = () => {
 
     return (
         <main className="mx-auto max-w-md px-5 py-16 text-center md:py-24" data-testid="logout-page">
-            <p className="noore-eyebrow mb-4">See you soon</p>
-            <h1 className="font-serif text-5xl">You have been signed out.</h1>
-            <p className="mt-6 text-sm text-stone">Thank you for visiting.</p>
+            <p className="ui-eyebrow mb-4">See you soon</p>
+            <h1 className="font-display text-5xl">You have been signed out.</h1>
+            <p className="mt-6 text-sm text-subtle">Thank you for visiting.</p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
-                <Link to="/login" className="noore-btn">Sign in</Link>
-                <Link to="/shop" className="noore-btn-outline min-h-12">Browse candles</Link>
+                <Link to="/login" className="ui-btn">Sign in</Link>
+                <Link to="/shop" className="ui-btn-outline min-h-12">Browse the shop</Link>
             </div>
         </main>
     );

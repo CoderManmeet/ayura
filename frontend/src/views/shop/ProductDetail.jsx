@@ -13,13 +13,13 @@ import { addToWishlist } from '../plugin/addToWishlist';
 import { CartContext } from '../plugin/Context';
 import { Heart } from 'lucide-react';
 import { formatINR } from '../../utils/money';
-import { BackLink, Loading, Photo } from '../ui/noore';
+import { BackLink, Loading, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import usePageTitle from '../../utils/usePageTitle';
 
 // Product page.
 //
-// A product is sold as one or more VARIANTS (for a candle: its sizes). Each variant has its
+// A product is sold as one or more VARIANTS (for example its sizes). Each variant has its
 // own price, MRP, SKU and stock, and describes itself with `options`, e.g. {"Size": "200 g"}.
 // The picker below is built from those options alone: one row of buttons per option name, so
 // adding a second option (say "Colour") needs data only, no code here.
@@ -43,7 +43,7 @@ const optionKeysOf = (variants) => {
 
 const matches = (variant, selection, keys) => keys.every((key) => (variant.options || {})[key] === selection[key]);
 
-const STOCK_CLASS = { in_stock: 'text-success', low_stock: 'text-clay', sold_out: 'text-danger' };
+const STOCK_CLASS = { in_stock: 'text-success', low_stock: 'text-accent', sold_out: 'text-danger' };
 
 function ProductDetail() {
     const [product, setProduct] = useState(null)
@@ -185,11 +185,11 @@ function ProductDetail() {
     return (
         <main>
             <div className="mx-auto max-w-[1440px] px-5 py-10 md:px-10 md:py-16">
-                <BackLink to="/shop">All candles</BackLink>
+                <BackLink to="/shop">All products</BackLink>
                 <div className="grid gap-10 md:grid-cols-2 md:gap-16">
                     {/* Gallery: one large photo, thumbnails beneath */}
                     <div>
-                        <div className="aspect-[4/5] overflow-hidden bg-oat">
+                        <div className="aspect-[4/5] overflow-hidden bg-muted">
                             {productImage && <Photo src={productImage} alt={product.title} width={SIZES.detail} className="size-full object-cover" />}
                         </div>
                         {images.length > 1 &&
@@ -205,23 +205,23 @@ function ProductDetail() {
                     </div>
 
                     <div>
-                        <h1 className="font-serif text-4xl leading-tight md:text-6xl" data-testid="product-title">{product.title}</h1>
-                        <p className="mt-3 flex items-center gap-2 text-xs text-stone">
+                        <h1 className="font-display text-4xl leading-tight md:text-6xl" data-testid="product-title">{product.title}</h1>
+                        <p className="mt-3 flex items-center gap-2 text-xs text-subtle">
                             {rating
-                                ? <><span aria-hidden="true" className="text-clay">{'★'.repeat(fullStars)}{'☆'.repeat(5 - fullStars)}</span><span>{Number(rating).toFixed(1)} out of 5 · {product.rating_count} {product.rating_count === 1 ? 'review' : 'reviews'}</span></>
+                                ? <><span aria-hidden="true" className="text-accent">{'★'.repeat(fullStars)}{'☆'.repeat(5 - fullStars)}</span><span>{Number(rating).toFixed(1)} out of 5 · {product.rating_count} {product.rating_count === 1 ? 'review' : 'reviews'}</span></>
                                 : <span>No reviews yet</span>
                             }
                         </p>
 
                         {/* Price for the selected variant */}
-                        <p className="mt-7 flex flex-wrap items-baseline gap-3 font-serif text-3xl" data-testid="product-price-block">
+                        <p className="mt-7 flex flex-wrap items-baseline gap-3 font-display text-3xl" data-testid="product-price-block">
                             <span data-testid="product-price">{selectedVariant ? formatINR(selectedVariant.price_paise) : ''}</span>
-                            {strike && <s className="font-sans text-base text-stone" data-testid="product-mrp">{formatINR(strike.compare_at_paise)}</s>}
-                            {strike && strike.percent_off > 0 && <span className="font-sans text-xs uppercase tracking-[0.15em] text-clay" data-testid="product-percent-off">{strike.percent_off}% off</span>}
+                            {strike && <s className="font-body text-base text-subtle" data-testid="product-mrp">{formatINR(strike.compare_at_paise)}</s>}
+                            {strike && strike.percent_off > 0 && <span className="font-body ui-caption text-accent" data-testid="product-percent-off">{strike.percent_off}% off</span>}
                         </p>
-                        <p className="mt-1 text-xs text-stone">Inclusive of all taxes</p>
+                        <p className="mt-1 text-xs text-subtle">Inclusive of all taxes</p>
 
-                        {product.description && <p className="mt-7 whitespace-pre-line text-sm leading-7 text-stone">{product.description}</p>}
+                        {product.description && <p className="mt-7 whitespace-pre-line text-sm leading-7 text-subtle">{product.description}</p>}
 
                         {/* Variant picker: one row of buttons per option name */}
                         {optionKeys.map((key) => {
@@ -232,7 +232,7 @@ function ProductDetail() {
                             });
                             return (
                                 <div className="mt-8" key={key} data-testid={`option-${key}`}>
-                                    <p className="noore-label mb-3">{key}: <span className="text-stone">{selection[key]}</span></p>
+                                    <p className="ui-label mb-3">{key}: <span className="text-subtle">{selection[key]}</span></p>
                                     <div className="flex flex-wrap gap-2" role="group" aria-label={key}>
                                         {values.map((value) => {
                                             const target = variantFor(key, value);
@@ -255,42 +255,39 @@ function ProductDetail() {
                         {stock &&
                             <p className="mt-6 text-xs">
                                 <span className={`uppercase tracking-[0.15em] ${STOCK_CLASS[stock.state] || ''}`} data-testid="stock-status">{stock.label}</span>
-                                {selectedVariant?.sku && <span className="ml-4 text-stone">SKU {selectedVariant.sku}</span>}
+                                {selectedVariant?.sku && <span className="ml-4 text-subtle">SKU {selectedVariant.sku}</span>}
                             </p>
                         }
 
                         <div className="mt-6 flex flex-wrap items-end gap-3">
                             <div className="flex flex-col gap-2">
-                                <label htmlFor="productQuantity" className="noore-label">Quantity</label>
+                                <label htmlFor="productQuantity" className="ui-label">Quantity</label>
                                 <input type="number" id="productQuantity" min={1} value={qtyValue} disabled={soldOut}
                                     onChange={(event) => setQtyValue(event.target.value)}
-                                    className="h-12 w-24 border border-line-strong bg-transparent px-3 text-sm outline-none focus:border-clay" />
+                                    className="h-12 w-24 border border-line-strong bg-transparent px-3 text-sm outline-none focus:border-accent" />
                             </div>
-                            <button onClick={handleAddToCart} type="button" disabled={soldOut || adding} className="noore-btn flex-1" data-testid="add-to-cart">
+                            <button onClick={handleAddToCart} type="button" disabled={soldOut || adding} className="ui-btn flex-1" data-testid="add-to-cart">
                                 {adding ? 'Adding...' : soldOut ? 'Sold out' : 'Add to bag'}
                             </button>
                             {userData &&
                                 <button onClick={handleAddToWishlist} type="button" aria-label="Save to wishlist" aria-pressed={wishlisted}
-                                    className={`flex size-12 items-center justify-center border border-line-strong ${wishlisted ? 'bg-clay text-white' : ''}`}>
+                                    className={`flex size-12 items-center justify-center border border-line-strong ${wishlisted ? 'bg-accent text-white' : ''}`}>
                                     <Heart className="size-4" aria-hidden="true" />
                                 </button>
                             }
                         </div>
 
                         {addon?.shipping_flat_paise != null &&
-                            <p className="mt-5 text-xs text-stone" data-testid="shipping-line">
+                            <p className="mt-5 text-xs text-subtle" data-testid="shipping-line">
                                 Shipping {formatINR(addon.shipping_flat_paise)}. Free on orders of {formatINR(addon.free_shipping_threshold_paise)} or more.{' '}
-                                <Link to="/policy/shipping" className="noore-link">Shipping policy</Link>
+                                <Link to="/policy/shipping" className="ui-link">Shipping policy</Link>
                             </p>
                         }
 
-                        {(selectedVariant?.weight_grams || specifications.length > 0) &&
+                        {specifications.length > 0 &&
                             <dl className="mt-10 border-t border-line text-sm">
-                                {selectedVariant?.weight_grams &&
-                                    <div className="flex justify-between gap-6 border-b border-line py-3"><dt className="noore-label">Net weight</dt><dd className="text-stone">{selectedVariant.weight_grams} g</dd></div>
-                                }
                                 {specifications.map((s, index) => (
-                                    <div className="flex justify-between gap-6 border-b border-line py-3" key={index}><dt className="noore-label">{s.title}</dt><dd className="text-right text-stone">{s.content}</dd></div>
+                                    <div className="flex justify-between gap-6 border-b border-line py-3" key={index}><dt className="ui-label">{s.title}</dt><dd className="text-right text-subtle">{s.content}</dd></div>
                                 ))}
                             </dl>
                         }
@@ -299,40 +296,40 @@ function ProductDetail() {
 
                 {/* Reviews: approved reviews from verified buyers */}
                 <section className="mt-20 border-t border-line pt-12" id="reviews">
-                    <p className="noore-eyebrow mb-4">Reviews</p>
+                    <p className="ui-eyebrow mb-4">Reviews</p>
                     <div className="grid gap-12 md:grid-cols-2">
                         <div>
                             {reviews.length > 0
                                 ? <div className="flex flex-col gap-8" data-testid="review-list">
                                     {reviews.map((review, index) => (
                                         <article key={index}>
-                                            <p className="text-clay" aria-label={`${review.rating} out of 5`}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</p>
+                                            <p className="text-accent" aria-label={`${review.rating} out of 5`}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</p>
                                             <p className="mt-2 text-sm leading-7">{review.review}</p>
                                             {/* display_name is sanitised server-side (core/display_name.py): never an email or a phone number. */}
-                                            <p className="mt-2 text-xs text-stone">{review.profile?.display_name || 'Verified buyer'} · verified buyer · {moment(review.date).format("DD MMM YYYY")}</p>
+                                            <p className="mt-2 text-xs text-subtle">{review.profile?.display_name || 'Verified buyer'} · verified buyer · {moment(review.date).format("DD MMM YYYY")}</p>
                                         </article>
                                     ))}
                                 </div>
-                                : <p className="font-serif text-2xl">No reviews yet.</p>
+                                : <p className="font-display text-2xl">No reviews yet.</p>
                             }
                         </div>
-                        <div className="h-fit bg-sand p-6 md:p-8" data-testid="review-box">
-                            <h2 className="font-serif text-2xl">Write a review</h2>
+                        <div className="h-fit bg-panel p-6 md:p-8" data-testid="review-box">
+                            <h2 className="font-display text-2xl">Write a review</h2>
                             {reviewSent && <p className="mt-4 text-sm text-success">{reviewSent}</p>}
                             {!reviewSent && reviewAccess?.reason === "login" &&
-                                <p className="mt-4 text-sm leading-7 text-stone">Reviews are from verified buyers. <Link to="/login" className="noore-link">Sign in</Link> to review a product you have received. Bought as a guest? Use the "create an account" link on your order page first.</p>
+                                <p className="mt-4 text-sm leading-7 text-subtle">Reviews are from verified buyers. <Link to="/login" className="ui-link">Sign in</Link> to review a product you have received. Bought as a guest? Use the "create an account" link on your order page first.</p>
                             }
                             {!reviewSent && reviewAccess?.reason === "not_purchased" &&
-                                <p className="mt-4 text-sm leading-7 text-stone">Only customers who have received this product can review it.</p>
+                                <p className="mt-4 text-sm leading-7 text-subtle">Only customers who have received this product can review it.</p>
                             }
                             {!reviewSent && reviewAccess?.reason === "already_reviewed" &&
-                                <p className="mt-4 text-sm leading-7 text-stone">You have already reviewed this product. Thank you.</p>
+                                <p className="mt-4 text-sm leading-7 text-subtle">You have already reviewed this product. Thank you.</p>
                             }
                             {reviewAccess?.eligible &&
                                 <form method='POST' onSubmit={handleReviewSubmit} className="mt-5 flex flex-col gap-5">
                                     <div className="flex flex-col gap-2">
-                                        <label htmlFor="reviewRating" className="noore-label">Rating</label>
-                                        <select onChange={handleReviewChange} name="rating" value={createReview.rating} id="reviewRating" className="noore-input">
+                                        <label htmlFor="reviewRating" className="ui-label">Rating</label>
+                                        <select onChange={handleReviewChange} name="rating" value={createReview.rating} id="reviewRating" className="ui-input">
                                             <option value="1">★ (1)</option>
                                             <option value="2">★★ (2)</option>
                                             <option value="3">★★★ (3)</option>
@@ -341,11 +338,11 @@ function ProductDetail() {
                                         </select>
                                     </div>
                                     <div className="flex flex-col gap-2">
-                                        <label htmlFor="reviewText" className="noore-label">Your review</label>
+                                        <label htmlFor="reviewText" className="ui-label">Your review</label>
                                         <textarea id="reviewText" rows={4} onChange={handleReviewChange} name="review" value={createReview.review}
-                                            className="w-full border border-line-strong bg-transparent p-3 text-sm outline-none focus:border-clay" />
+                                            className="w-full border border-line-strong bg-transparent p-3 text-sm outline-none focus:border-accent" />
                                     </div>
-                                    <button type="submit" className="noore-btn w-fit">Submit review</button>
+                                    <button type="submit" className="ui-btn w-fit">Submit review</button>
                                 </form>
                             }
                         </div>

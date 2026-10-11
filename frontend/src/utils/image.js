@@ -5,8 +5,8 @@
 // on delivery, so asking for the size actually needed turns megabytes into tens of kilobytes.
 // It is done by putting instructions into the address:
 //
-//   https://res.cloudinary.com/demo/image/upload/v1/noore/candle.jpg
-//   https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/noore/candle.jpg
+//   https://res.cloudinary.com/demo/image/upload/v1/products/serum.jpg
+//   https://res.cloudinary.com/demo/image/upload/f_auto,q_auto,c_limit,w_600/v1/products/serum.jpg
 //
 //   f_auto   send WebP or AVIF to browsers that take it
 //   q_auto   pick a sensible quality

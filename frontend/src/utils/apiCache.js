@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import apiInstance from './axios';
 import { API_BASE_URL } from './constants';
 
-const CACHE_PREFIX = 'noore:catalogue:v1:';
+const CACHE_PREFIX = 'store:catalogue:v1:';
 // A single answer bigger than this is not worth storing (localStorage is ~5 MB in total).
 const MAX_CACHE_BYTES = 400 * 1024;
 // How long a cached answer is served without a visible refresh happening anyway. The refresh

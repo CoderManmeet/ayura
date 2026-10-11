@@ -9,7 +9,7 @@ import { CartContext } from '../plugin/Context';
 // "Buy again": puts a past order's items back in the bag at today's prices and today's
 // availability, then opens the bag. It never places an order by itself; the customer still
 // reviews the bag and checks out.
-function BuyAgainButton({ orderOid, className = "noore-btn-outline" }) {
+function BuyAgainButton({ orderOid, className = "ui-btn-outline" }) {
     const [busy, setBusy] = useState(false)
     const [, setCartCount] = useContext(CartContext)
     const navigate = useNavigate()

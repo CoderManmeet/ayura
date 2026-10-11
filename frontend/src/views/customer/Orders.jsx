@@ -6,7 +6,7 @@ import apiInstance from '../../utils/axios';
 import UserData from '../plugin/UserData';
 import { formatINR } from '../../utils/money';
 import usePageTitle from '../../utils/usePageTitle';
-import { Loading, PageIntro } from '../ui/noore';
+import { Loading, PageIntro } from '../ui/kit';
 import BuyAgainButton from './BuyAgainButton';
 
 // What the customer is told about an order, in plain words.
@@ -24,7 +24,7 @@ export const orderStatusLabel = (order) => {
 };
 
 export function AccountNav() {
-    const link = "text-[10px] uppercase tracking-[0.18em] text-stone hover:text-ink";
+    const link = "ui-caption text-subtle hover:text-ink";
     return (
         <nav aria-label="Account" className="mt-8 flex flex-wrap gap-x-7 gap-y-3">
             <Link to="/customer/orders/" className={link}>Orders</Link>
@@ -56,21 +56,21 @@ function Orders() {
                 {orders === null && <Loading />}
                 {orders !== null && orders.length === 0 &&
                     <div className="py-16 text-center">
-                        <p className="font-serif text-2xl">No orders yet.</p>
-                        <Link to="/shop" className="noore-btn mt-7">Browse candles</Link>
+                        <p className="font-display text-2xl">No orders yet.</p>
+                        <Link to="/shop" className="ui-btn mt-7">Browse the shop</Link>
                     </div>
                 }
                 <div className="flex flex-col">
                     {(orders || []).map((o) => (
                         <article key={o.oid} className="flex flex-col gap-4 border-b border-line py-6 md:flex-row md:items-center md:justify-between" data-testid="customer-order">
                             <div>
-                                <p className="font-serif text-2xl">#{o.oid}</p>
-                                <p className="mt-1 text-xs text-stone">{moment(o.date).format('DD MMM YYYY')} · {(o.orderitem || []).length} {(o.orderitem || []).length === 1 ? 'item' : 'items'}</p>
-                                <p className="mt-2 text-[10px] uppercase tracking-[0.15em] text-clay">{orderStatusLabel(o)}</p>
+                                <p className="font-display text-2xl">#{o.oid}</p>
+                                <p className="mt-1 text-xs text-subtle">{moment(o.date).format('DD MMM YYYY')} · {(o.orderitem || []).length} {(o.orderitem || []).length === 1 ? 'item' : 'items'}</p>
+                                <p className="mt-2 ui-caption text-accent">{orderStatusLabel(o)}</p>
                             </div>
                             <div className="flex items-center gap-4">
                                 <span className="text-sm">{formatINR(o.total_paise)}</span>
-                                <Link className="noore-btn-outline" to={`/customer/order/detail/${o.oid}/`}>View</Link>
+                                <Link className="ui-btn-outline" to={`/customer/order/detail/${o.oid}/`}>View</Link>
                                 <BuyAgainButton orderOid={o.oid} />
                             </div>
                         </article>

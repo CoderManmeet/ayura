@@ -1,12 +1,11 @@
 // Storefront smoke suite (phases G1 and G2).
 //
-// Runs against the placeholder catalogue from `python manage.py seed_noore`:
-//   three scents, each in 100 g (Rs 499, MRP Rs 599), 200 g (Rs 799, MRP Rs 949) and
-//   300 g (Rs 1,199, MRP Rs 1,399), 20 of each in stock, plus the coupon WELCOME10 (10% off).
-// Shipping is Rs 79, free from Rs 999.
+// Runs against the placeholder catalogue from `python manage.py seed_ayura`. The product used
+// here is the Face Serum: 30 ml (Rs 449, MRP Rs 499) and 50 ml (Rs 649, MRP Rs 699), 20 of each
+// in stock, plus the coupon WELCOME10 (10% off). Shipping is Rs 79, free from Rs 999.
 import { test, expect } from '@playwright/test';
 
-const SCENT = '/detail/noore-lavender';
+const PRODUCT = '/detail/face-serum';
 
 const addToCart = async (page) => {
     const added = page.waitForResponse((response) => response.url().includes('/cart-view/') && response.request().method() === 'POST');
@@ -27,19 +26,19 @@ const fillAddress = async (page) => {
 };
 
 test('G2: choosing a size shows that size\'s price and honest stock, and adds that size to the cart', async ({ page }) => {
-    await page.goto(SCENT);
-    await expect(page.getByTestId('product-title')).toHaveText('Lavender Scented Candle');
+    await page.goto(PRODUCT);
+    await expect(page.getByTestId('product-title')).toHaveText('Face Serum');
 
     // Default size.
-    await expect(page.getByTestId('product-price')).toHaveText('₹499');
-    await expect(page.getByTestId('product-mrp')).toHaveText('₹599');
-    await expect(page.getByTestId('product-percent-off')).toHaveText('16% off');
+    await expect(page.getByTestId('product-price')).toHaveText('₹449');
+    await expect(page.getByTestId('product-mrp')).toHaveText('₹499');
+    await expect(page.getByTestId('product-percent-off')).toHaveText('10% off');
 
-    // Pick 200 g.
-    await page.getByTestId('option-Size').getByRole('button', { name: '200 g' }).click();
-    await expect(page.getByTestId('product-price')).toHaveText('₹799');
-    await expect(page.getByTestId('product-mrp')).toHaveText('₹949');
-    await expect(page.getByTestId('product-percent-off')).toHaveText('15% off');
+    // Pick 50 ml. (Rs 50 off an MRP of Rs 699 is 7.15%, shown rounded down.)
+    await page.getByTestId('option-Size').getByRole('button', { name: '50 ml' }).click();
+    await expect(page.getByTestId('product-price')).toHaveText('₹649');
+    await expect(page.getByTestId('product-mrp')).toHaveText('₹699');
+    await expect(page.getByTestId('product-percent-off')).toHaveText('7% off');
     await expect(page.getByTestId('stock-status')).toHaveText('In stock');
     await expect(page.getByTestId('shipping-line')).toContainText('Shipping ₹79. Free on orders of ₹999 or more.');
     await expect(page.locator('main')).toContainText('Inclusive of all taxes');
@@ -48,34 +47,34 @@ test('G2: choosing a size shows that size\'s price and honest stock, and adds th
 
     await page.goto('/cart/');
     await expect(page.getByTestId('cart-line')).toHaveCount(1);
-    await expect(page.getByTestId('cart-line-variant')).toHaveText('200 g');
-    await expect(page.getByTestId('cart-line-subtotal')).toHaveText('₹799');
+    await expect(page.getByTestId('cart-line-variant')).toHaveText('50 ml');
+    await expect(page.getByTestId('cart-line-subtotal')).toHaveText('₹649');
 });
 
 test('G1: add to cart, apply a coupon, and see correct INR totals in the cart and at checkout', async ({ page }) => {
-    await page.goto(SCENT);
-    await page.getByTestId('option-Size').getByRole('button', { name: '200 g' }).click();
-    await expect(page.getByTestId('product-price')).toHaveText('₹799');
+    await page.goto(PRODUCT);
+    await page.getByTestId('option-Size').getByRole('button', { name: '50 ml' }).click();
+    await expect(page.getByTestId('product-price')).toHaveText('₹649');
     await addToCart(page);
 
     await page.goto('/cart/');
-    await expect(page.getByTestId('summary-subtotal')).toHaveText('₹799');
+    await expect(page.getByTestId('summary-subtotal')).toHaveText('₹649');
     await expect(page.getByTestId('summary-shipping')).toHaveText('₹79');
-    await expect(page.getByTestId('summary-total')).toHaveText('₹878');
-    await expect(page.getByTestId('free-shipping-line')).toHaveText('Add ₹200 more for free shipping.');
+    await expect(page.getByTestId('summary-total')).toHaveText('₹728');
+    await expect(page.getByTestId('free-shipping-line')).toHaveText('Add ₹350 more for free shipping.');
 
     // An unknown code is refused with a reason and changes nothing.
     await page.getByLabel('Coupon code').fill('NOPE');
     await page.getByRole('button', { name: 'Apply' }).click();
     await expect(page.getByTestId('coupon-message')).toHaveText('This coupon code is not valid.');
-    await expect(page.getByTestId('summary-total')).toHaveText('₹878');
+    await expect(page.getByTestId('summary-total')).toHaveText('₹728');
 
-    // 10% off the Rs 799 subtotal = Rs 79.90; shipping still applies.
+    // 10% off the Rs 649 subtotal = Rs 64.90; shipping still applies.
     await page.getByLabel('Coupon code').fill('welcome10');
     await page.getByRole('button', { name: 'Apply' }).click();
-    await expect(page.getByTestId('summary-discount')).toHaveText('-₹79.90');
+    await expect(page.getByTestId('summary-discount')).toHaveText('-₹64.90');
     await expect(page.getByTestId('summary-shipping')).toHaveText('₹79');
-    await expect(page.getByTestId('summary-total')).toHaveText('₹798.10');
+    await expect(page.getByTestId('summary-total')).toHaveText('₹663.10');
     await expect(page.getByTestId('cart-summary')).toContainText('Inclusive of all taxes');
     await expect(page.getByTestId('cart-summary')).not.toContainText('Tax');
     await expect(page.getByTestId('cart-summary')).not.toContainText('Service');
@@ -85,14 +84,14 @@ test('G1: add to cart, apply a coupon, and see correct INR totals in the cart an
 
     await expect(page).toHaveURL(/\/checkout\//);
     const summary = page.getByTestId('checkout-summary');
-    await expect(summary.getByTestId('summary-subtotal')).toHaveText('₹799');
-    await expect(summary.getByTestId('summary-discount')).toHaveText('-₹79.90');
+    await expect(summary.getByTestId('summary-subtotal')).toHaveText('₹649');
+    await expect(summary.getByTestId('summary-discount')).toHaveText('-₹64.90');
     await expect(summary.getByTestId('summary-shipping')).toHaveText('₹79');
-    await expect(summary.getByTestId('summary-total')).toHaveText('₹798.10');
+    await expect(summary.getByTestId('summary-total')).toHaveText('₹663.10');
     await expect(summary).toContainText('Discount (WELCOME10)');
     await expect(summary).toContainText('Inclusive of all taxes');
     await expect(page.getByLabel('UPI / Card / Netbanking')).toBeChecked();
-    await expect(page.getByTestId('pay-online')).toHaveText('Pay ₹798.10');
+    await expect(page.getByTestId('pay-online')).toHaveText('Pay ₹663.10');
 
     // No dollars, no PayPal, no tax or service-fee rows anywhere on the page.
     const body = page.locator('body');
@@ -107,15 +106,16 @@ test('G1: add to cart, apply a coupon, and see correct INR totals in the cart an
 });
 
 test('G1: an order of Rs 999 or more ships free', async ({ page }) => {
-    await page.goto(SCENT);
-    await page.getByTestId('option-Size').getByRole('button', { name: '300 g' }).click();
-    await expect(page.getByTestId('product-price')).toHaveText('₹1,199');
+    await page.goto(PRODUCT);
+    // Two of the 50 ml (Rs 649 each) = Rs 1,298.
+    await page.getByTestId('option-Size').getByRole('button', { name: '50 ml' }).click();
+    await page.getByLabel('Quantity').fill('2');
     await addToCart(page);
 
     await page.goto('/cart/');
-    await expect(page.getByTestId('summary-subtotal')).toHaveText('₹1,199');
+    await expect(page.getByTestId('summary-subtotal')).toHaveText('₹1,298');
     await expect(page.getByTestId('summary-shipping')).toHaveText('Free');
-    await expect(page.getByTestId('summary-total')).toHaveText('₹1,199');
+    await expect(page.getByTestId('summary-total')).toHaveText('₹1,298');
     await expect(page.locator('body')).not.toContainText('$');
 });
 

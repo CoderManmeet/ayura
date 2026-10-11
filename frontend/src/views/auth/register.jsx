@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../utils/auth';
 import { useAuthStore } from '../../store/auth';
 import usePageTitle from '../../utils/usePageTitle';
-import { Field } from '../ui/noore';
+import { Field } from '../ui/kit';
 
 // Turn the server's validation answer ({field: [messages]}) into readable lines.
 const describe = (problem) => {
@@ -49,8 +49,8 @@ function Register() {
 
     return (
         <main className="mx-auto max-w-md px-5 py-16 md:py-24" data-testid="register-page">
-            <p className="noore-eyebrow mb-4">Join us</p>
-            <h1 className="font-serif text-5xl">Create an account.</h1>
+            <p className="ui-eyebrow mb-4">Join us</p>
+            <h1 className="font-display text-5xl">Create an account.</h1>
             <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-6">
                 <Field id="registerName" label="Full name" value={fullname} onChange={(e) => setFullname(e.target.value)} autoComplete="name" required />
                 <Field id="registerEmail" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
@@ -62,9 +62,9 @@ function Register() {
                         {errors.map((message, index) => <li key={index}>{message}</li>)}
                     </ul>
                 }
-                <button className="noore-btn w-full" type="submit" disabled={isLoading}>{isLoading ? 'Please wait...' : 'Create account'}</button>
+                <button className="ui-btn w-full" type="submit" disabled={isLoading}>{isLoading ? 'Please wait...' : 'Create account'}</button>
             </form>
-            <p className="mt-8 text-xs text-stone">Already have an account? <Link to="/login" className="noore-link text-ink">Sign in</Link></p>
+            <p className="mt-8 text-xs text-subtle">Already have an account? <Link to="/login" className="ui-link text-ink">Sign in</Link></p>
         </main>
     );
 }

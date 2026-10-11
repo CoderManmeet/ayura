@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 // Bootstrap, for the pages that were built with it and have not been redesigned: the admin
 // area and a few older account pages. It is added to the page only while one of those pages
-// is open and removed again afterwards, so it can never restyle the Noore storefront.
+// is open and removed again afterwards, so it can never restyle the storefront.
 //
 // The stylesheets are inserted at the START of <head>, so the storefront theme (later in the
 // document) still wins wherever both style the same element, e.g. the shared header.

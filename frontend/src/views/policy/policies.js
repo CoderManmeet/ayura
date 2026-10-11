@@ -3,7 +3,8 @@
 // ============================  PLACEHOLDER COPY  ============================
 // Every paragraph below is placeholder text written so the pages, links and layout can be
 // built and tested. It is NOT the store's real policy and must be replaced by the owner
-// before launch (ROADMAP G2 / G5). Nothing here has been reviewed as a legal statement.
+// before launch (docs/ROADMAP.md, phase A and the legal questions L1-L7). Nothing here has been
+// reviewed as a legal statement, and none of it makes a product claim.
 // While `PLACEHOLDER_COPY` is true each page shows a visible notice saying so; set it to
 // false once the real text is in.
 // ============================================================================
@@ -49,7 +50,19 @@ export const POLICIES = {
                 heading: 'Returns',
                 paragraphs: [
                     '[PLACEHOLDER] Which items can be returned, within how many days, and in what condition, go here.',
-                    '[PLACEHOLDER] What to do if an order arrives damaged or incorrect goes here.',
+                ],
+            },
+            {
+                heading: 'Opened products',
+                paragraphs: [
+                    '[PLACEHOLDER] Whether an opened skin, hair or body care product can be returned, and why, goes here.',
+                ],
+            },
+            {
+                heading: 'Damaged, leaking or wrong items',
+                paragraphs: [
+                    '[PLACEHOLDER] What to do if an order arrives damaged, leaking or with the wrong item, and how quickly to tell us, goes here.',
+                    'If this happens, write to {email} with your order number and a photo, and we will sort it out.',
                 ],
             },
             {
@@ -90,9 +103,21 @@ export const POLICIES = {
                 ],
             },
             {
+                heading: 'Using our products',
+                paragraphs: [
+                    '[PLACEHOLDER] Patch-test advice, cautions (for example external use only, keep away from eyes) and how to store the products go here.',
+                ],
+            },
+            {
+                heading: 'Shelf life',
+                paragraphs: [
+                    '[PLACEHOLDER] How long the products keep, and where the use-by date is shown, goes here.',
+                ],
+            },
+            {
                 heading: 'General',
                 paragraphs: [
-                    '[PLACEHOLDER] Product care and safety information, limitation of liability and governing law go here.',
+                    '[PLACEHOLDER] Limitation of liability and governing law go here.',
                 ],
             },
         ],

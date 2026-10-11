@@ -262,7 +262,7 @@ ENABLED_PAYMENT_PROVIDERS = [p.strip().lower() for p in env.list("ENABLED_PAYMEN
 # A prepaid order still unconfirmed after this many minutes is checked with Razorpay directly.
 PAYMENT_RECONCILE_AFTER_MINUTES = env.int("PAYMENT_RECONCILE_AFTER_MINUTES", default=3)
 # Name shown in the Razorpay checkout window and in order emails.
-STORE_NAME = env.str("STORE_NAME", default="Noore Candles")
+STORE_NAME = env.str("STORE_NAME", default="Ayura")
 # Days after delivery before the single review-request email is sent.
 REVIEW_REQUEST_DELAY_DAYS = env.int("REVIEW_REQUEST_DELAY_DAYS", default=7)
 # Hours an "create your account" link sent to a guest's order email stays valid.
@@ -457,13 +457,14 @@ SIMPLE_JWT = {
 
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Desphixs",
-    "site_header": "Desphixs",
-    "site_brand": "Modern Marketplace ",
+    # Django admin (/admin/) is branded with the store's own name, never the course project's.
+    "site_title": STORE_NAME,
+    "site_header": STORE_NAME,
+    "site_brand": STORE_NAME,
     "site_icon": "images/favicon.ico",
     "site_logo": "images/logos/logo.jpg",
-    "welcome_sign": "Welcome To Desphixs",
-    "copyright": "All right reserved to Desphixs",
+    "welcome_sign": f"{STORE_NAME} admin",
+    "copyright": STORE_NAME,
     "user_avatar": "images/photos/logo.jpg",
     "topmenu_links": [
         {"name": "Dashboard", "url": "home",

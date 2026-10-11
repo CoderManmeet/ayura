@@ -4,15 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f2eb" />
-    <title>Noore Candles</title>
-    <meta name="description" content="Noore Candles: hand-poured scented candles, made in small batches in India." />
+    <!-- The %...% values are filled in at build time by the brand-html plugin in vite.config.js:
+         the store name and description from VITE_STORE_NAME / VITE_STORE_DESCRIPTION, the colour
+         from --color-canvas in src/theme/brand.css, and the API preconnect from VITE_API_BASE_URL. -->
+    <meta name="theme-color" content="%THEME_COLOR%" />
+    <title>%STORE_NAME%</title>
+    <meta name="description" content="%STORE_DESCRIPTION%" />
 
     <!-- Open the connections the first page needs while the HTML is still being read, so the
          DNS lookup and the TLS handshake are already done when the first request goes out.
-         Worth a few hundred milliseconds on a phone. Change the API address if yours differs. -->
-    <link rel="preconnect" href="https://noore-api.onrender.com" crossorigin />
-    <link rel="dns-prefetch" href="https://noore-api.onrender.com" />
+         Worth a few hundred milliseconds on a phone. -->
+    %API_PRECONNECT%
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
 

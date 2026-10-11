@@ -30,11 +30,11 @@ test('the home page is readable while the server is still starting', async ({ pa
 
     // The words and the button are there long before any data arrives.
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 4000 });
-    await expect(page.getByRole('link', { name: /explore the collection/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /shop all/i }).first()).toBeVisible();
     expect(Date.now() - started).toBeLessThan(6000);
 
     // The collection area holds placeholder cards, not an empty hole.
-    await expect(page.getByRole('status', { name: 'Loading candles' })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Loading products' })).toBeVisible();
 
     // And after a few seconds it says, honestly, what is going on.
     await expect(page.getByTestId('waking-notice')).toBeVisible({ timeout: 8000 });
@@ -66,7 +66,7 @@ test('the shop page shows placeholder cards in the real grid shape', async ({ pa
     await delayCatalogue(page, 6000);
     await page.goto('/shop');
 
-    await expect(page.getByRole('status', { name: 'Loading candles' })).toBeVisible({ timeout: 4000 });
+    await expect(page.getByRole('status', { name: 'Loading products' })).toBeVisible({ timeout: 4000 });
     await expect(page.getByTestId('shop-products')).toBeVisible({ timeout: 20000 });
 });
 
@@ -77,7 +77,7 @@ test('the hero photo loads eagerly while listing photos stay lazy', async ({ pag
         id,
         pid: `p${id}`,
         title,
-        slug: `candle-${id}`,
+        slug: `product-${id}`,
         image: `https://res.cloudinary.com/demo/image/upload/v1/sample-${id}.jpg`,
         featured: id === 1,
         price_from_paise: 49900,
@@ -85,7 +85,7 @@ test('the hero photo loads eagerly while listing photos stay lazy', async ({ pag
         variants: [{ id, is_default: true, price_paise: 49900 }],
     });
     await page.route(/\/api\/v1\/products\/$/, (route) =>
-        route.fulfill({ json: [product(1, 'Hero candle'), product(2, 'Second candle')] }));
+        route.fulfill({ json: [product(1, 'Hero product'), product(2, 'Second product')] }));
     // Answer the photo requests locally with a 1x1 pixel: a failed photo is drawn as nothing at
     // all by Photo(), which would leave no <img> to inspect.
     const pixel = Buffer.from(

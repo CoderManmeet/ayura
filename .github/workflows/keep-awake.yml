@@ -16,7 +16,10 @@
 # Set the API address once, in the repository, under
 # Settings -> Secrets and variables -> Actions -> Variables -> New repository variable:
 #
-#   name:  API_BASE_URL     value:  https://noore-api.onrender.com/api/v1/
+#   name:  API_BASE_URL     value:  https://<your-render-service>.onrender.com/api/v1/
+#
+# There is deliberately no default address: without the variable both jobs say so and stop, so
+# a copy of this workflow can never ping some other store's backend.
 #
 # GitHub also disables scheduled workflows in a repository with no activity for 60 days, and its
 # schedule can run late when GitHub is busy. If the shop must never be slow, add a second,
@@ -44,8 +47,11 @@ jobs:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
         run: |
           set -u
-          BASE="${API_BASE_URL:-https://noore-api.onrender.com/api/v1/}"
-          BASE="${BASE%/}/"
+          if [ -z "${API_BASE_URL:-}" ]; then
+            echo "API_BASE_URL is not set (repository Settings -> Secrets and variables -> Actions -> Variables); nothing to ping."
+            exit 0
+          fi
+          BASE="${API_BASE_URL%/}/"
           echo "Pinging ${BASE}health/"
           # A sleeping instance takes tens of seconds to answer the first request, and answers
           # 503 while the database is still waking, so try a few times before giving up.
@@ -77,8 +83,11 @@ jobs:
             echo "JOBS_RUN_TOKEN is not configured; skipping. The backend is awake either way."
             exit 0
           fi
-          BASE="${API_BASE_URL:-https://noore-api.onrender.com/api/v1/}"
-          BASE="${BASE%/}/"
+          if [ -z "${API_BASE_URL:-}" ]; then
+            echo "API_BASE_URL is not set; skipping."
+            exit 0
+          fi
+          BASE="${API_BASE_URL%/}/"
           # The token goes in a header, never in the address, so it stays out of the logs.
           code=$(curl -s -o /tmp/jobs.json -w '%{http_code}' --max-time 90 \
                    -X POST "${BASE}jobs/run/" \

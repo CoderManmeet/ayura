@@ -10,7 +10,7 @@ import CartID from '../plugin/cartID';
 import { CartContext } from '../plugin/Context';
 import { Trash2 } from 'lucide-react';
 import { formatINR } from '../../utils/money';
-import { BackLink, Field, Photo } from '../ui/noore';
+import { BackLink, Field, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import usePageTitle from '../../utils/usePageTitle';
 
@@ -187,13 +187,13 @@ function Cart() {
         <main>
             <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-20">
                 <BackLink to="/shop">Continue shopping</BackLink>
-                <h1 className="font-serif text-5xl md:text-7xl">Your bag.</h1>
+                <h1 className="font-display text-5xl md:text-7xl">Your bag.</h1>
 
                 {quote !== null && visibleLines.length < 1 &&
                     <div className="py-20 text-center">
-                        <p className="font-serif text-2xl">Your Cart Is Empty</p>
-                        <p className="mt-2 text-sm text-stone">Choose a scent to begin.</p>
-                        <Link to='/shop' className="noore-btn mt-7">Browse candles</Link>
+                        <p className="font-display text-2xl">Your bag is empty.</p>
+                        <p className="mt-2 text-sm text-subtle">Find something for your skin, hair or body.</p>
+                        <Link to='/shop' className="ui-btn mt-7">Browse the shop</Link>
                     </div>
                 }
 
@@ -205,17 +205,17 @@ function Cart() {
                                     const line = pricedLines[c.id];
                                     return (
                                         <article className="flex gap-4 border-b border-line pb-6" key={c.id} data-testid="cart-line">
-                                            <Link to={`/detail/${c?.product?.slug}`} className="block size-28 shrink-0 overflow-hidden bg-oat md:size-36">
+                                            <Link to={`/detail/${c?.product?.slug}`} className="block size-28 shrink-0 overflow-hidden bg-muted md:size-36">
                                                 {c?.product?.image && <Photo src={c.product.image} alt={c?.product?.title} width={SIZES.thumb} className="size-full object-cover" />}
                                             </Link>
                                             <div className="flex min-w-0 flex-1 flex-col justify-between gap-4">
                                                 <div className="flex justify-between gap-3">
                                                     <div>
-                                                        <h2 className="font-serif text-2xl"><Link to={`/detail/${c.product.slug}`}>{c?.product?.title}</Link></h2>
+                                                        <h2 className="font-display text-2xl"><Link to={`/detail/${c.product.slug}`}>{c?.product?.title}</Link></h2>
                                                         {c.variant?.name && c.variant.name !== "Default" &&
                                                             <p className="mt-2 text-xs" data-testid="cart-line-variant">{c.variant.name}</p>
                                                         }
-                                                        <p className="mt-1 text-xs text-stone">{formatINR(line.unit_price_paise)} each</p>
+                                                        <p className="mt-1 text-xs text-subtle">{formatINR(line.unit_price_paise)} each</p>
                                                     </div>
                                                     <p className="text-sm" data-testid="cart-line-subtotal">{formatINR(line.line_subtotal_paise)}</p>
                                                 </div>
@@ -223,10 +223,10 @@ function Cart() {
                                                     <div className="flex items-center gap-2">
                                                         <input type="number" aria-label="Quantity" min={1} value={quantities[c.id] ?? c.qty}
                                                             onChange={(e) => handleQtyChange(e, c.id)}
-                                                            className="h-10 w-20 border border-line-strong bg-transparent px-3 text-sm outline-none focus:border-clay" />
-                                                        <button onClick={() => updateLine(c)} className="noore-btn-outline" title="Update quantity">Update</button>
+                                                            className="h-10 w-20 border border-line-strong bg-transparent px-3 text-sm outline-none focus:border-accent" />
+                                                        <button onClick={() => updateLine(c)} className="ui-btn-outline" title="Update quantity">Update</button>
                                                     </div>
-                                                    <button onClick={() => removeLine(c.id)} className="flex items-center gap-2 text-[10px] uppercase tracking-[0.14em] text-stone">
+                                                    <button onClick={() => removeLine(c.id)} className="flex items-center gap-2 ui-caption text-subtle">
                                                         <Trash2 className="size-3" aria-hidden="true" /> Remove
                                                     </button>
                                                 </div>
@@ -237,32 +237,32 @@ function Cart() {
                             </div>
 
                             <div className="mt-10 border-b border-line pb-8">
-                                <label htmlFor="cartCoupon" className="noore-label">Have a coupon code?</label>
+                                <label htmlFor="cartCoupon" className="ui-label">Have a coupon code?</label>
                                 <div className="mt-3 flex max-w-md items-center border-b border-line-strong">
                                     <input id="cartCoupon" onChange={(e) => setCouponInput(e.target.value)} value={couponInput} name="couponCode" type="text"
                                         aria-label="Coupon code" placeholder="Enter code" readOnly={Boolean(appliedCoupon)}
                                         className="min-h-12 min-w-0 flex-1 bg-transparent text-sm uppercase outline-none" />
                                     {appliedCoupon
-                                        ? <button onClick={removeCoupon} className="text-[10px] uppercase tracking-[0.15em] text-clay">Remove</button>
-                                        : <button onClick={applyCoupon} className="text-[10px] uppercase tracking-[0.15em] text-clay">Apply</button>
+                                        ? <button onClick={removeCoupon} className="ui-caption text-accent">Remove</button>
+                                        : <button onClick={applyCoupon} className="ui-caption text-accent">Apply</button>
                                     }
                                 </div>
-                                {couponMessage && <p className="mt-3 text-xs text-clay" data-testid="coupon-message">{couponMessage}</p>}
+                                {couponMessage && <p className="mt-3 text-xs text-accent" data-testid="coupon-message">{couponMessage}</p>}
                             </div>
 
                             {quote &&
                                 <>
-                                    <p className="mt-6 text-xs text-stone" data-testid="free-shipping-line">
+                                    <p className="mt-6 text-xs text-subtle" data-testid="free-shipping-line">
                                         {quote.amount_to_free_shipping_paise > 0
                                             ? <>Add <b>{formatINR(quote.amount_to_free_shipping_paise)}</b> more for free shipping.</>
                                             : <>Shipping {formatINR(quote.shipping_flat_paise)}. Free on orders of {formatINR(quote.free_shipping_threshold_paise)} or more.</>
                                         }
                                     </p>
-                                    <div className="mt-3 h-1 bg-linen" aria-hidden="true"><div className="h-full bg-clay" style={{ width: `${progress}%` }} /></div>
+                                    <div className="mt-3 h-1 bg-soft" aria-hidden="true"><div className="h-full bg-accent" style={{ width: `${progress}%` }} /></div>
                                 </>
                             }
 
-                            <h2 className="mt-14 font-serif text-3xl">Delivery details</h2>
+                            <h2 className="mt-14 font-display text-3xl">Delivery details</h2>
                             <div className="mt-8 grid gap-6 md:grid-cols-2">
                                 <div className="md:col-span-2"><Field id="cartFullName" label="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" /></div>
                                 <Field id="cartEmail" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
@@ -276,21 +276,21 @@ function Cart() {
                         </section>
 
                         {/* Summary. Every price, fee and discount is shown here before the customer commits. */}
-                        <section className="h-fit bg-sand p-6 md:p-8 lg:sticky lg:top-6" data-testid="cart-summary">
-                            <p className="mb-6 text-[10px] uppercase tracking-[0.2em]">Order summary</p>
+                        <section className="h-fit bg-panel p-6 md:p-8 lg:sticky lg:top-6" data-testid="cart-summary">
+                            <p className="mb-6 ui-caption">Order summary</p>
                             <div className="flex flex-col gap-3 text-sm">
                                 <div className="flex justify-between"><span>Subtotal</span><span data-testid="summary-subtotal">{formatINR(quote?.subtotal_paise ?? 0)}</span></div>
                                 {quote?.discount_paise > 0 &&
-                                    <div className="flex justify-between text-clay"><span>Discount ({quote.coupon_code})</span><span data-testid="summary-discount">-{formatINR(quote.discount_paise)}</span></div>
+                                    <div className="flex justify-between text-accent"><span>Discount ({quote.coupon_code})</span><span data-testid="summary-discount">-{formatINR(quote.discount_paise)}</span></div>
                                 }
                                 <div className="flex justify-between"><span>Shipping</span><span data-testid="summary-shipping">{quote?.free_shipping ? 'Free' : formatINR(quote?.shipping_paise ?? 0)}</span></div>
-                                <div className="mt-3 flex justify-between border-t border-line pt-4 font-serif text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(quote?.total_paise ?? 0)}</span></div>
-                                <p className="text-xs text-stone">Inclusive of all taxes</p>
+                                <div className="mt-3 flex justify-between border-t border-line pt-4 font-display text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(quote?.total_paise ?? 0)}</span></div>
+                                <p className="text-xs text-subtle">Inclusive of all taxes</p>
                             </div>
-                            <button onClick={createCartOrder} disabled={placingOrder} className="noore-btn mt-8 w-full">
+                            <button onClick={createCartOrder} disabled={placingOrder} className="ui-btn mt-8 w-full">
                                 {placingOrder ? 'Please wait...' : 'Go to checkout'}
                             </button>
-                            <p className="mt-4 text-center text-xs text-stone">You choose how to pay on the next step.</p>
+                            <p className="mt-4 text-center text-xs text-subtle">You choose how to pay on the next step.</p>
                         </section>
                     </div>
                 }

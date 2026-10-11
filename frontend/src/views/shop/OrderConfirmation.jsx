@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import apiInstance from '../../utils/axios';
 import UserData from '../plugin/UserData';
 import { formatINR } from '../../utils/money';
-import { Loading, Photo } from '../ui/noore';
+import { Loading, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import usePageTitle from '../../utils/usePageTitle';
 
@@ -88,56 +88,56 @@ function OrderConfirmation() {
     else if (['initiated', 'processing'].includes(status)) state = 'unpaid';
 
     const isGuest = !order.buyer;
-    const banner = "border border-line bg-sand p-6 md:p-8";
+    const banner = "border border-line bg-panel p-6 md:p-8";
 
     return (
         <main data-testid="order-confirmation">
             <div className="mx-auto max-w-3xl px-5 py-14 md:px-10 md:py-20">
                 <div className={banner} data-testid="order-state">
                     {state === 'paid' && <>
-                        <p className="noore-eyebrow mb-3">Payment received</p>
-                        <h1 className="font-serif text-4xl">Payment received. Thank you!</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone">Your order <b>#{order.oid}</b> is confirmed. We have emailed the details to {order.email}.</p>
+                        <p className="ui-eyebrow mb-3">Payment received</p>
+                        <h1 className="font-display text-4xl">Payment received. Thank you!</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle">Your order <b>#{order.oid}</b> is confirmed. We have emailed the details to {order.email}.</p>
                     </>}
                     {state === 'cod' && <>
-                        <p className="noore-eyebrow mb-3">Cash on delivery</p>
-                        <h1 className="font-serif text-4xl">Order placed. Thank you!</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone">Your order <b>#{order.oid}</b> is Cash on Delivery. Please keep <b>{formatINR(order.total_paise)}</b> ready to pay when it arrives. We may call or message you to confirm it before we send it.</p>
+                        <p className="ui-eyebrow mb-3">Cash on delivery</p>
+                        <h1 className="font-display text-4xl">Order placed. Thank you!</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle">Your order <b>#{order.oid}</b> is Cash on Delivery. Please keep <b>{formatINR(order.total_paise)}</b> ready to pay when it arrives. We may call or message you to confirm it before we send it.</p>
                     </>}
                     {state === 'confirming' && <>
-                        <p className="noore-eyebrow mb-3">One moment</p>
-                        <h1 className="font-serif text-4xl">Confirming your payment</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone">This usually takes a few seconds. Please keep this page open.</p>
+                        <p className="ui-eyebrow mb-3">One moment</p>
+                        <h1 className="font-display text-4xl">Confirming your payment</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle">This usually takes a few seconds. Please keep this page open.</p>
                     </>}
                     {state === 'slow' && <>
-                        <p className="noore-eyebrow mb-3">Still working</p>
-                        <h1 className="font-serif text-4xl">We are still confirming your payment</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone">You do not need to pay again. As soon as your bank confirms, we will email {order.email}. If money has left your account and you do not hear from us, <Link to="/contact" className="noore-link">contact us</Link> with order <b>#{order.oid}</b>.</p>
+                        <p className="ui-eyebrow mb-3">Still working</p>
+                        <h1 className="font-display text-4xl">We are still confirming your payment</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle">You do not need to pay again. As soon as your bank confirms, we will email {order.email}. If money has left your account and you do not hear from us, <Link to="/contact" className="ui-link">contact us</Link> with order <b>#{order.oid}</b>.</p>
                     </>}
                     {state === 'unpaid' && <>
-                        <h1 className="font-serif text-4xl">This order has not been paid for yet</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone"><Link to={`/checkout/${order.oid}`} className="noore-link">Go back to checkout</Link> to choose how to pay.</p>
+                        <h1 className="font-display text-4xl">This order has not been paid for yet</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle"><Link to={`/checkout/${order.oid}`} className="ui-link">Go back to checkout</Link> to choose how to pay.</p>
                     </>}
                     {state === 'cancelled' && <>
-                        <h1 className="font-serif text-4xl">This order is no longer active</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone">If you still want these items, please add them to your bag again.</p>
+                        <h1 className="font-display text-4xl">This order is no longer active</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle">If you still want these items, please add them to your bag again.</p>
                     </>}
                     {state === 'other' && <>
-                        <h1 className="font-serif text-4xl">Order #{order.oid}</h1>
-                        <p className="mt-4 text-sm leading-7 text-stone">Status: {status}</p>
+                        <h1 className="font-display text-4xl">Order #{order.oid}</h1>
+                        <p className="mt-4 text-sm leading-7 text-subtle">Status: {status}</p>
                     </>}
                 </div>
 
-                <p className="mb-5 mt-12 text-[10px] uppercase tracking-[0.2em]">Order #{order.oid}</p>
+                <p className="mb-5 mt-12 ui-caption">Order #{order.oid}</p>
                 <div className="flex flex-col gap-5">
                     {(order.orderitem || []).map((item) => (
                         <div className="flex items-center gap-4" key={item.id}>
-                            <div className="size-16 shrink-0 overflow-hidden bg-oat">
+                            <div className="size-16 shrink-0 overflow-hidden bg-muted">
                                 {item.product?.image && <Photo src={item.product.image} alt="" width={SIZES.thumb} className="size-full object-cover" />}
                             </div>
                             <div className="flex-1">
-                                <p className="font-serif text-xl">{item.product?.title}</p>
-                                <p className="text-xs text-stone">{item.variant?.name && item.variant.name !== "Default" ? `${item.variant.name} · ` : ''}Qty {item.qty}</p>
+                                <p className="font-display text-xl">{item.product?.title}</p>
+                                <p className="text-xs text-subtle">{item.variant?.name && item.variant.name !== "Default" ? `${item.variant.name} · ` : ''}Qty {item.qty}</p>
                             </div>
                             <p className="text-sm">{formatINR(item.sub_total_paise)}</p>
                         </div>
@@ -146,31 +146,31 @@ function OrderConfirmation() {
                 <div className="ml-auto mt-8 flex max-w-xs flex-col gap-2 text-sm">
                     <div className="flex justify-between"><span>Subtotal</span><span>{formatINR(order.sub_total_paise)}</span></div>
                     {order.saved_paise > 0 &&
-                        <div className="flex justify-between text-clay"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span>-{formatINR(order.saved_paise)}</span></div>
+                        <div className="flex justify-between text-accent"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span>-{formatINR(order.saved_paise)}</span></div>
                     }
                     <div className="flex justify-between"><span>Shipping</span><span>{order.shipping_amount_paise > 0 ? formatINR(order.shipping_amount_paise) : 'Free'}</span></div>
-                    <div className="mt-2 flex justify-between border-t border-line pt-3 font-serif text-2xl"><span>Total</span><span data-testid="confirmation-total">{formatINR(order.total_paise)}</span></div>
-                    <p className="text-right text-xs text-stone">Inclusive of all taxes{isCod ? '. Cash on Delivery' : ''}</p>
+                    <div className="mt-2 flex justify-between border-t border-line pt-3 font-display text-2xl"><span>Total</span><span data-testid="confirmation-total">{formatINR(order.total_paise)}</span></div>
+                    <p className="text-right text-xs text-subtle">Inclusive of all taxes{isCod ? '. Cash on Delivery' : ''}</p>
                 </div>
 
-                <p className="mt-10 text-sm leading-7 text-stone">
-                    <span className="noore-label text-ink">Delivering to</span><br />
+                <p className="mt-10 text-sm leading-7 text-subtle">
+                    <span className="ui-label text-ink">Delivering to</span><br />
                     {order.full_name}, {order.address}, {order.city}, {order.state} {order.pincode}
                 </p>
 
                 {(state === 'paid' || state === 'cod') && isGuest &&
                     <div className="mt-10 border border-line p-6" data-testid="account-invite">
-                        <h2 className="font-serif text-2xl">Create an account to track this order</h2>
-                        <p className="mt-3 text-sm leading-7 text-stone">We will email a link to <b>{order.email}</b>. Open it to choose a password; this order will then appear in your account and you can reorder in one tap.</p>
+                        <h2 className="font-display text-2xl">Create an account to track this order</h2>
+                        <p className="mt-3 text-sm leading-7 text-subtle">We will email a link to <b>{order.email}</b>. Open it to choose a password; this order will then appear in your account and you can reorder in one tap.</p>
                         {inviteMessage
                             ? <p className="mt-4 text-sm text-success" data-testid="account-invite-message">{inviteMessage}</p>
-                            : <button className="noore-btn-outline mt-5" onClick={askForAccountLink} disabled={inviteBusy}>{inviteBusy ? 'Sending...' : 'Email me the link'}</button>
+                            : <button className="ui-btn-outline mt-5" onClick={askForAccountLink} disabled={inviteBusy}>{inviteBusy ? 'Sending...' : 'Email me the link'}</button>
                         }
                     </div>
                 }
-                <div className="mt-10 flex flex-wrap gap-6 text-[10px] uppercase tracking-[0.15em]">
-                    {!isGuest && userData && <Link to="/customer/orders/" className="noore-link">See all my orders</Link>}
-                    <Link to="/shop" className="noore-link">Continue shopping</Link>
+                <div className="mt-10 flex flex-wrap gap-6 ui-caption">
+                    {!isGuest && userData && <Link to="/customer/orders/" className="ui-link">See all my orders</Link>}
+                    <Link to="/shop" className="ui-link">Continue shopping</Link>
                 </div>
             </div>
         </main>

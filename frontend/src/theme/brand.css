@@ -1,0 +1,365 @@
+/*
+ * Brand theme: THE one place the storefront's look is defined.
+ *
+ * Everything brand-specific is in the BRAND block directly below: the typefaces, the colour
+ * tokens, and a handful of "personality" settings (button shape, how small labels are set, the
+ * wordmark and the home headline). Change that block and every storefront page and the admin
+ * area follow. No component names a hex code, a typeface or a brand.
+ *
+ * Colour tokens are named by ROLE, not by colour, so a new palette never leaves a misleading
+ * name behind (Tailwind turns each into utilities such as bg-canvas, text-subtle):
+ *
+ *   canvas   page background                  ink      main text, primary buttons
+ *   panel    page-intro bands, summaries      subtle   secondary text
+ *   soft     footer, soft blocks              accent   links, labels, highlights, hover
+ *   muted    photo placeholders, skeletons    line / line-strong   rules and borders
+ *   success / danger   status messages
+ *
+ *   font-display  headings and prices          font-body  everything else
+ *
+ * The typeface FILES are bundled with the site (npm @fontsource packages, no font service) and
+ * loaded by src/theme/brand-fonts.js, beside this file. They are not @imported here because
+ * Tailwind inlines CSS imports without rewriting the font files' relative addresses, which
+ * would break them in the built site. Change a typeface: change the imports there and the
+ * --font-display / --font-body names below.
+ *
+ * Component classes (`.ui-*`) are defined further down and read the BRAND settings; the markup
+ * uses them (`ui-btn`, `ui-caption`, `ui-eyebrow`, `ui-label`, `ui-input`, `ui-link`, ...).
+ *
+ * How this lives beside the few pages still written for Bootstrap:
+ *   - Bootstrap is not loaded globally. Only some older account pages load it
+ *     (src/layouts/LegacyStyles.jsx), so it cannot restyle the storefront.
+ *   - Tailwind's reset stays in the "base" layer, where Bootstrap (when present) overrides it,
+ *     so those older pages keep their look.
+ *   - Tailwind's utilities are deliberately NOT in a layer, so a utility class always beats
+ *     Bootstrap's element rules on the shared header and footer.
+ */
+
+@layer theme, base, components;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@source "../";
+
+/* ======================================================================== BRAND: colours, type */
+@theme {
+    --color-canvas: #edefe8;
+    --color-panel: #e2e6db;
+    --color-soft: #d5dccb;
+    --color-muted: #c7cfbc;
+    --color-ink: #1e3127;
+    --color-subtle: #55635a;
+    --color-accent: #9a5a17;
+    --color-line: rgb(30 49 39 / 0.16);
+    --color-line-strong: rgb(30 49 39 / 0.32);
+    --color-success: #3f6b46;
+    --color-danger: #a3402e;
+
+    --font-display: "Young Serif", Georgia, "Times New Roman", serif;
+    --font-body: "Karla", "Segoe UI", Arial, sans-serif;
+}
+
+/* ======================================================================== BRAND: personality */
+:root {
+    --brand-selection-bg: #e6cfa6;
+    --brand-selection-fg: #1e3127;
+
+    /* Buttons and other controls. */
+    --brand-control-radius: 999px;
+    --brand-button-size: 0.875rem;
+    --brand-button-weight: 700;
+    --brand-button-case: none;
+    --brand-button-tracking: 0.01em;
+
+    /* Small labels: section eyebrows, field labels, captions. */
+    --brand-caption-size: 0.8125rem;
+    --brand-caption-weight: 700;
+    --brand-caption-case: none;
+    --brand-caption-tracking: 0.01em;
+
+    /* The wordmark in the header and footer (until a logo file replaces it). */
+    --brand-wordmark-font: var(--font-display);
+    --brand-wordmark-size: 1.85rem;
+    --brand-wordmark-weight: 400;
+    --brand-wordmark-case: none;
+    --brand-wordmark-tracking: -0.01em;
+
+    /* Weight of every other heading set in the display face. */
+    --brand-display-weight: 400;
+
+    /* The home page headline. */
+    --brand-hero-size: clamp(2.5rem, 5.4vw, 5rem);
+    --brand-hero-weight: 400;
+    --brand-hero-leading: 1.04;
+    --brand-hero-tracking: -0.015em;
+}
+/* ======================================================================== end of BRAND */
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        overflow-x: hidden;
+    }
+
+    button,
+    a {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+    }
+
+    ::selection {
+        background: var(--brand-selection-bg);
+        color: var(--brand-selection-fg);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 3px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+/*
+ * The storefront shell. On pages that still load Bootstrap, these rules (same specificity as
+ * Bootstrap's element rules, but later in the document) keep the shared header and footer
+ * looking like the store. `:where()` keeps their specificity at element level so any utility
+ * class on the element still wins.
+ */
+:where(.ui-shell) {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+:where(.ui-chrome) :is(p, h1, h2, h3, h4, ul, ol, label) {
+    margin: 0;
+}
+
+:where(.ui-chrome) a {
+    color: inherit;
+    text-decoration: none;
+}
+
+:where(.ui-chrome) :is(button, input) {
+    font: inherit;
+    color: inherit;
+}
+
+/*
+ * Reusable pieces (kept tiny; everything else is utility classes in the components).
+ *
+ * These sit in the `components` layer, which the layer order above puts BELOW Tailwind's
+ * utilities. That matters: without it, `.ui-btn-outline { display: inline-flex }` beat
+ * `md:hidden`, and a button meant to disappear on desktop stayed on screen.
+ */
+@layer components {
+    /* A short label above a heading. */
+    .ui-eyebrow {
+        font-size: var(--brand-caption-size);
+        font-weight: var(--brand-caption-weight);
+        letter-spacing: var(--brand-caption-tracking);
+        text-transform: var(--brand-caption-case);
+        color: var(--color-accent);
+    }
+
+    /* Small text that labels or groups things: nav links, summary headings, meta lines. */
+    .ui-caption {
+        font-size: var(--brand-caption-size);
+        font-weight: var(--brand-caption-weight);
+        letter-spacing: var(--brand-caption-tracking);
+        text-transform: var(--brand-caption-case);
+    }
+
+    /* A form field's label. */
+    .ui-label {
+        font-size: var(--brand-caption-size);
+        font-weight: var(--brand-caption-weight);
+        letter-spacing: var(--brand-caption-tracking);
+        text-transform: var(--brand-caption-case);
+    }
+
+    .ui-input {
+        min-height: 3rem;
+        width: 100%;
+        border-bottom: 1px solid var(--color-line-strong);
+        background: transparent;
+        font-size: 1rem;
+        outline: none;
+    }
+
+    .ui-input:focus {
+        border-bottom-color: var(--color-accent);
+    }
+
+    .ui-btn {
+        display: inline-flex;
+        min-height: 3rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        border-radius: var(--brand-control-radius);
+        background: var(--color-ink);
+        padding: 0 1.6rem;
+        font-size: var(--brand-button-size);
+        font-weight: var(--brand-button-weight);
+        letter-spacing: var(--brand-button-tracking);
+        text-transform: var(--brand-button-case);
+        color: var(--color-canvas);
+        transition: background-color 0.2s;
+    }
+
+    .ui-btn:hover:not(:disabled) {
+        background: var(--color-accent);
+    }
+
+    .ui-btn:disabled {
+        opacity: 0.5;
+    }
+
+    .ui-btn-outline {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border: 1px solid var(--color-line-strong);
+        border-radius: var(--brand-control-radius);
+        padding: 0 1.1rem;
+        font-size: var(--brand-button-size);
+        font-weight: var(--brand-button-weight);
+        letter-spacing: var(--brand-button-tracking);
+        text-transform: var(--brand-button-case);
+        transition: background-color 0.2s, color 0.2s;
+    }
+
+    .ui-btn-outline:hover:not(:disabled) {
+        background: var(--color-ink);
+        color: var(--color-canvas);
+    }
+
+    .ui-link {
+        text-decoration: underline;
+        text-underline-offset: 4px;
+    }
+
+    .ui-wordmark {
+        font-family: var(--brand-wordmark-font);
+        font-size: var(--brand-wordmark-size);
+        font-weight: var(--brand-wordmark-weight);
+        letter-spacing: var(--brand-wordmark-tracking);
+        text-transform: var(--brand-wordmark-case);
+        line-height: 1;
+        color: var(--color-ink);
+    }
+
+    /* Headings in the display face. A weight utility on the element (font-bold) still wins. */
+    .font-display {
+        font-weight: var(--brand-display-weight);
+    }
+
+    .ui-hero-title {
+        font-size: var(--brand-hero-size);
+        font-weight: var(--brand-hero-weight);
+        line-height: var(--brand-hero-leading);
+        letter-spacing: var(--brand-hero-tracking);
+        text-wrap: balance;
+    }
+}
+
+/* SweetAlert dialogs, matched to the theme. */
+.swal2-popup {
+    border-radius: 0 !important;
+    background: var(--color-canvas) !important;
+    color: var(--color-ink) !important;
+    font-family: var(--font-body) !important;
+}
+
+.swal2-title {
+    font-family: var(--font-display) !important;
+    font-weight: 400 !important;
+}
+
+.swal2-styled.swal2-confirm {
+    border-radius: var(--brand-control-radius) !important;
+    background: var(--color-ink) !important;
+}
+
+/* The swipeable product row. A thin scrollbar on desktop, the system one on touch devices. */
+.ui-rail {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+    scroll-padding-left: 1.25rem;
+    overscroll-behavior-x: contain;
+}
+
+.ui-rail::-webkit-scrollbar {
+    height: 6px;
+}
+
+.ui-rail::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ui-rail::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+}
+
+.ui-rail:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+}
+
+/*
+ * Loading placeholders (see src/views/ui/kit.jsx).
+ *
+ * A waiting area that keeps the real layout and sweeps slowly reads as "coming", where an empty
+ * area reads as "broken". Unlayered, like the rail rules above, so a utility class can still
+ * override the background colour. Still and plain for anyone who has asked for reduced motion.
+ */
+.ui-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+
+.ui-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    transform: translateX(-100%);
+    animation: ui-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes ui-sweep {
+    to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-shimmer::after {
+        animation: none;
+        opacity: 0.35;
+        transform: none;
+    }
+}

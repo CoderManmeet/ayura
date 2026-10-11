@@ -4,7 +4,7 @@ import Addon from '../plugin/Addon';
 import { formatINR } from '../../utils/money';
 import { STORE_NAME, SUPPORT_EMAIL } from '../../utils/constants';
 import usePageTitle from '../../utils/usePageTitle';
-import { PageIntro } from '../ui/noore';
+import { PageIntro } from '../ui/kit';
 import NotFound from '../base/NotFound';
 import { PLACEHOLDER_COPY, POLICIES } from './policies';
 
@@ -12,7 +12,7 @@ import { PLACEHOLDER_COPY, POLICIES } from './policies';
 export function PlaceholderNotice() {
     if (!PLACEHOLDER_COPY) return null;
     return (
-        <p className="mb-8 border border-clay/40 bg-sand px-4 py-3 text-xs text-clay" role="note" data-testid="placeholder-notice">
+        <p className="mb-8 border border-accent/40 bg-panel px-4 py-3 text-xs text-accent" role="note" data-testid="placeholder-notice">
             <strong>Placeholder text.</strong> This page is a draft layout. The final policy wording has not been published yet.
         </p>
     );
@@ -45,14 +45,14 @@ function PolicyPage() {
                 <PlaceholderNotice />
                 {policy.sections.map((section) => (
                     <section className="mb-10" key={section.heading}>
-                        <h2 className="font-serif text-2xl">{section.heading}</h2>
+                        <h2 className="font-display text-2xl">{section.heading}</h2>
                         {section.paragraphs.map((paragraph, index) => (
-                            <p className="mt-4 text-sm leading-7 text-stone" key={index}>{fill(paragraph)}</p>
+                            <p className="mt-4 text-sm leading-7 text-subtle" key={index}>{fill(paragraph)}</p>
                         ))}
                     </section>
                 ))}
-                <p className="border-t border-line pt-6 text-sm text-stone">
-                    Questions? <Link to="/contact" className="noore-link text-ink">Contact us</Link>.
+                <p className="border-t border-line pt-6 text-sm text-subtle">
+                    Questions? <Link to="/contact" className="ui-link text-ink">Contact us</Link>.
                 </p>
             </div>
         </main>

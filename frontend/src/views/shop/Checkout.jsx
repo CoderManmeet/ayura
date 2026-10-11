@@ -6,7 +6,7 @@ import apiInstance from '../../utils/axios';
 import { formatINR } from '../../utils/money';
 import { loadRazorpay } from '../../utils/razorpay';
 import { POLICY_LINKS } from '../policy/policies';
-import { Loading, PageIntro, Photo } from '../ui/noore';
+import { Loading, PageIntro, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import usePageTitle from '../../utils/usePageTitle';
 
@@ -164,24 +164,24 @@ function Checkout() {
       <div className="mx-auto max-w-6xl px-5 py-12 md:px-10 md:py-16">
         <div className="grid gap-12 lg:grid-cols-[1.2fr_.8fr]">
           <section>
-            <p className="mb-5 text-[10px] uppercase tracking-[0.2em]">Delivering to</p>
+            <p className="mb-5 ui-caption">Delivering to</p>
             <div className="border border-line p-6 text-sm leading-7">
-              <p className="font-serif text-2xl">{order.full_name}</p>
-              <p className="mt-2 text-stone">{order.address}<br />{order.city}, {order.state} {order.pincode}<br />{order.country}</p>
-              <p className="mt-3 text-stone">{order.email} · {order.mobile}</p>
-              <Link to="/cart/" className="noore-link mt-4 inline-block text-[10px] uppercase tracking-[0.15em]">Change details</Link>
+              <p className="font-display text-2xl">{order.full_name}</p>
+              <p className="mt-2 text-subtle">{order.address}<br />{order.city}, {order.state} {order.pincode}<br />{order.country}</p>
+              <p className="mt-3 text-subtle">{order.email} · {order.mobile}</p>
+              <Link to="/cart/" className="ui-link mt-4 inline-block ui-caption">Change details</Link>
             </div>
 
-            <p className="mb-5 mt-12 text-[10px] uppercase tracking-[0.2em]">Items</p>
+            <p className="mb-5 mt-12 ui-caption">Items</p>
             <div className="flex flex-col gap-5">
               {(order.orderitem || []).map((item) => (
                 <div className="flex items-center gap-4" key={item.id} data-testid="checkout-line">
-                  <div className="size-16 shrink-0 overflow-hidden bg-oat">
+                  <div className="size-16 shrink-0 overflow-hidden bg-muted">
                     {item.product?.image && <Photo src={item.product.image} alt="" width={SIZES.thumb} className="size-full object-cover" />}
                   </div>
                   <div className="flex-1">
-                    <p className="font-serif text-xl">{item.product?.title}</p>
-                    <p className="text-xs text-stone">{item.variant?.name && item.variant.name !== "Default" ? `${item.variant.name} · ` : ''}Qty {item.qty}</p>
+                    <p className="font-display text-xl">{item.product?.title}</p>
+                    <p className="text-xs text-subtle">{item.variant?.name && item.variant.name !== "Default" ? `${item.variant.name} · ` : ''}Qty {item.qty}</p>
                   </div>
                   <p className="text-sm">{formatINR(item.sub_total_paise)}</p>
                 </div>
@@ -190,33 +190,33 @@ function Checkout() {
           </section>
 
           {/* Summary: every price, fee and discount is visible before the customer pays. */}
-          <section className="h-fit bg-sand p-6 md:p-8" data-testid="checkout-summary">
-            <p className="mb-6 text-[10px] uppercase tracking-[0.2em]">Order summary</p>
+          <section className="h-fit bg-panel p-6 md:p-8" data-testid="checkout-summary">
+            <p className="mb-6 ui-caption">Order summary</p>
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex justify-between"><span>Subtotal</span><span data-testid="summary-subtotal">{formatINR(order.sub_total_paise)}</span></div>
               {hasDiscount &&
-                <div className="flex justify-between text-clay"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span data-testid="summary-discount">-{formatINR(order.saved_paise)}</span></div>
+                <div className="flex justify-between text-accent"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span data-testid="summary-discount">-{formatINR(order.saved_paise)}</span></div>
               }
               <div className="flex justify-between"><span>Shipping</span><span data-testid="summary-shipping">{order.shipping_amount_paise > 0 ? formatINR(order.shipping_amount_paise) : 'Free'}</span></div>
-              <div className="mt-3 flex justify-between border-t border-line pt-4 font-serif text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(order.total_paise)}</span></div>
-              <p className="text-xs text-stone">Inclusive of all taxes</p>
+              <div className="mt-3 flex justify-between border-t border-line pt-4 font-display text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(order.total_paise)}</span></div>
+              <p className="text-xs text-subtle">Inclusive of all taxes</p>
             </div>
 
             <div className="mt-7 flex items-center border-b border-line-strong">
               <input onChange={(e) => setCouponCode(e.target.value)} value={couponCode} readOnly={couponBusy} name="couponCode" type="text"
                 aria-label="Coupon code" placeholder={order.coupon_code ? 'Use a different coupon' : 'Coupon code'}
                 className="min-h-12 min-w-0 flex-1 bg-transparent text-sm uppercase outline-none" />
-              <button onClick={applyCoupon} disabled={couponBusy} className="text-[10px] uppercase tracking-[0.15em] text-clay">{couponBusy ? '...' : 'Apply'}</button>
+              <button onClick={applyCoupon} disabled={couponBusy} className="ui-caption text-accent">{couponBusy ? '...' : 'Apply'}</button>
             </div>
             {order.coupon_code &&
-              <p className="mt-3 text-xs text-stone">
+              <p className="mt-3 text-xs text-subtle">
                 Coupon <b>{order.coupon_code}</b> applied.{' '}
-                <button type="button" className="noore-link" disabled={couponBusy} onClick={() => submitCoupon("")}>Remove</button>
+                <button type="button" className="ui-link" disabled={couponBusy} onClick={() => submitCoupon("")}>Remove</button>
               </p>
             }
 
             {/* How to pay. Neither option costs more than the other: no COD fee is charged. */}
-            <p className="mb-3 mt-9 text-[10px] uppercase tracking-[0.2em]">How would you like to pay?</p>
+            <p className="mb-3 mt-9 ui-caption">How would you like to pay?</p>
             <div className="flex flex-col gap-2" data-testid="payment-methods">
               {onlineOffered &&
                 <label htmlFor="payOnline" className={radio(method === METHOD_ONLINE)}>
@@ -236,28 +236,28 @@ function Checkout() {
             </div>
 
             {method === METHOD_ONLINE && onlineOffered &&
-              <button onClick={payOnline} type="button" disabled={paying} className="noore-btn mt-6 w-full" data-testid="pay-online">
+              <button onClick={payOnline} type="button" disabled={paying} className="ui-btn mt-6 w-full" data-testid="pay-online">
                 {paying ? 'Please wait...' : <>Pay {formatINR(order.total_paise)}</>}
               </button>
             }
             {method === METHOD_COD && codOffered &&
               <>
-                <button onClick={placeCod} type="button" disabled={paying} className="noore-btn mt-6 w-full" data-testid="place-cod">
+                <button onClick={placeCod} type="button" disabled={paying} className="ui-btn mt-6 w-full" data-testid="place-cod">
                   {paying ? 'Please wait...' : 'Place order'}
                 </button>
-                <p className="mt-3 text-xs leading-6 text-stone">You pay {formatINR(order.total_paise)} in cash when your order arrives. We may call or message you to confirm it before we send it.</p>
+                <p className="mt-3 text-xs leading-6 text-subtle">You pay {formatINR(order.total_paise)} in cash when your order arrives. We may call or message you to confirm it before we send it.</p>
               </>
             }
 
-            <p className="mt-6 text-xs leading-6 text-stone" data-testid="checkout-policies">
+            <p className="mt-6 text-xs leading-6 text-subtle" data-testid="checkout-policies">
               Before you pay, please read our{' '}
               {POLICY_LINKS.map((policy, index) => (
                 <span key={policy.path}>
-                  <Link to={policy.path} target="_blank" rel="noopener noreferrer" className="noore-link">{policy.title}</Link>
+                  <Link to={policy.path} target="_blank" rel="noopener noreferrer" className="ui-link">{policy.title}</Link>
                   {index < POLICY_LINKS.length - 1 ? ', ' : '. '}
                 </span>
               ))}
-              Need help? <Link to="/contact" target="_blank" rel="noopener noreferrer" className="noore-link">Contact us</Link>.
+              Need help? <Link to="/contact" target="_blank" rel="noopener noreferrer" className="ui-link">Contact us</Link>.
             </p>
           </section>
         </div>

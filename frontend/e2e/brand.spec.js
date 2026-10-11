@@ -1,11 +1,19 @@
-// Brand and storefront checks (phase G4.5): the storefront reads as Noore Candles, a shopper
-// never meets marketplace wording, and only staff can reach the admin area.
+// Brand and storefront checks (phase G4.5, extended in Ayura phase A): the storefront reads as
+// the store it is (STORE_NAME, default Ayura), a shopper never meets marketplace wording or
+// anything left over from the store this code was forked from, and only staff can reach the
+// admin area.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test, expect } from '@playwright/test';
+
+const STORE_NAME = process.env.VITE_STORE_NAME || 'Ayura';
 
 const OWNER = 'owner@e2e.test';
 const CUSTOMER = 'customer@e2e.test';
 const PASSWORD = 'E2e-only-Passw0rd!';
-const FORBIDDEN = /vendor/i;
+// Never shown to a shopper: marketplace wording, and the previous brand and its product.
+const FORBIDDEN = /vendor|noore|candle/i;
 
 const signIn = async (page, email) => {
     await page.goto('/login');
@@ -27,7 +35,7 @@ const surfaceOf = (page) => page.evaluate(() => ({
     labels: Array.from(document.querySelectorAll('[aria-label],[title]')).map((el) => `${el.getAttribute('aria-label') || ''} ${el.getAttribute('title') || ''}`),
 }));
 
-test('logged out, the word "vendor" is not reachable anywhere a shopper can navigate', async ({ page }) => {
+test('logged out, "vendor", "noore" and "candle" are not reachable anywhere a shopper can navigate', async ({ page }) => {
     test.setTimeout(180_000);
     const queue = ['/'];
     const seen = new Set();
@@ -50,7 +58,7 @@ test('logged out, the word "vendor" is not reachable anywhere a shopper can navi
         surface.alts.filter((alt) => FORBIDDEN.test(alt)).forEach((alt) => problems.push(`${path}: image alt "${alt}"`));
         surface.labels.filter((label) => FORBIDDEN.test(label)).forEach((label) => problems.push(`${path}: label "${label.trim()}"`));
         surface.links.filter((href) => FORBIDDEN.test(href)).forEach((href) => problems.push(`${path}: link to ${href}`));
-        expect(surface.title, `title of ${path}`).toContain('Noore');
+        expect(surface.title, `title of ${path}`).toContain(STORE_NAME);
 
         surface.links
             .filter((href) => href && href.startsWith('/') && !href.startsWith('//'))
@@ -68,13 +76,20 @@ test('logged out, the word "vendor" is not reachable anywhere a shopper can navi
     expect(seen.has('/login')).toBe(true);
 });
 
-test('every page carries the Noore title, favicon and logo', async ({ page }) => {
+test('every page carries the store title, favicon and logo', async ({ page }) => {
     for (const path of ['/', '/shop', '/about', '/cart/', '/contact', '/login']) {
         await page.goto(path);
-        await expect(page).toHaveTitle(/Noore/);
-        await expect(page.getByRole('link', { name: 'Noore home' }).first()).toBeVisible();
+        await expect(page).toHaveTitle(new RegExp(STORE_NAME));
+        await expect(page.getByRole('link', { name: `${STORE_NAME} home` }).first()).toBeVisible();
         await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
     }
+    // The browser colour comes from the theme file: it equals the page background token.
+    const colours = await page.evaluate(() => ({
+        meta: document.querySelector('meta[name="theme-color"]').getAttribute('content').toLowerCase(),
+        canvas: getComputedStyle(document.documentElement).getPropertyValue('--color-canvas').trim().toLowerCase(),
+    }));
+    expect(colours.meta).toBe(colours.canvas);
+    await expect(page.locator('meta[name="description"]')).not.toHaveAttribute('content', /%|noore|candle/i);
     await page.goto('/');
     await expect(page.getByTestId('announcement')).toHaveText('Free shipping on orders of ₹999 or more');
 });
@@ -171,7 +186,7 @@ test('the home collection is one row the shopper scrolls, with working arrows on
 
     const rail = page.getByTestId('product-rail');
     await expect(rail).toBeVisible();
-    await expect(page.getByTestId('product-card')).toHaveCount(3);
+    await expect(page.getByTestId('product-card')).toHaveCount(6);
 
     // The cards sit in one row, not a grid: every card shares the same top edge.
     const tops = await page.getByTestId('product-card').evaluateAll(
@@ -190,21 +205,21 @@ test('the home collection is one row the shopper scrolls, with working arrows on
         await page.getByTestId('rail-prev').click();
         await expect.poll(() => rail.evaluate((node) => node.scrollLeft)).toBeLessThanOrEqual(1);
     } else {
-        // Too few candles to scroll: no arrows, and nothing is cut off.
+        // Too few products to scroll: no arrows, and nothing is cut off.
         await expect(page.getByTestId('rail-next')).toHaveCount(0);
     }
 
-    // "View all candles" appears once, not once per breakpoint.
-    await expect(page.getByRole('link', { name: 'View all candles' })).toHaveCount(1);
+    // "View all products" appears once, not once per breakpoint.
+    await expect(page.getByRole('link', { name: 'View all products' })).toHaveCount(1);
     await page.setViewportSize({ width: 390, height: 844 });
-    await expect(page.getByRole('link', { name: 'View all candles' })).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'View all products' })).toHaveCount(1);
     await expect(page.getByTestId('product-rail')).toBeVisible();
 });
 
 for (const [name, viewport] of [['mobile', { width: 390, height: 844 }], ['desktop', { width: 1280, height: 800 }]]) {
     test(`home, about, shop and product page hold together at ${name} width`, async ({ page }) => {
         await page.setViewportSize(viewport);
-        for (const path of ['/', '/about', '/shop', '/detail/noore-lavender']) {
+        for (const path of ['/', '/about', '/shop', '/detail/face-serum']) {
             await page.goto(path);
             await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
             await page.waitForLoadState('networkidle');
@@ -213,10 +228,36 @@ for (const [name, viewport] of [['mobile', { width: 390, height: 844 }], ['deskt
             expect(overflow, `${path} is wider than the screen by ${overflow}px`).toBeLessThanOrEqual(1);
         }
         await page.goto('/shop');
-        await expect(page.getByTestId('product-card')).toHaveCount(3);
+        await expect(page.getByTestId('product-card')).toHaveCount(8);
         // Listing photos share one ratio (4:5).
         const ratios = await page.getByTestId('product-card').locator('div.aspect-\\[4\\/5\\]').evaluateAll((nodes) => nodes.map((node) => Math.round((node.clientWidth / node.clientHeight) * 100)));
         expect(new Set(ratios).size).toBe(1);
         expect(ratios[0]).toBe(80);
     });
 }
+// The theme is brand-neutral: one theme file and one UI kit, and no component still names the
+// previous brand. (Ayura phase A; static check of the source, no browser needed.)
+test('the source has no leftover brand-specific theme names', async () => {
+    const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
+    const files = [];
+    const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).forEach((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(jsx?|css)$/.test(entry.name)) files.push(full);
+    });
+    walk(src);
+
+    const offenders = files.filter((file) => /noore/i.test(fs.readFileSync(file, 'utf8')))
+        .map((file) => path.relative(src, file));
+    expect(offenders, offenders.join('\n')).toEqual([]);
+    expect(fs.existsSync(path.join(src, 'theme', 'brand.css'))).toBe(true);
+    expect(fs.existsSync(path.join(src, 'views', 'ui', 'kit.jsx'))).toBe(true);
+    expect(fs.existsSync(path.join(src, 'theme', 'noore.css'))).toBe(false);
+    expect(fs.existsSync(path.join(src, 'views', 'ui', 'noore.jsx'))).toBe(false);
+
+    // No component names a colour or a typeface: those live in the theme file only.
+    const themeWords = /\b(bg|text|border)-(cream|sand|linen|oat|stone|clay)\b|\bfont-(serif|sans)\b/;
+    const stale = files.filter((file) => !file.includes(`${path.sep}theme${path.sep}`) && themeWords.test(fs.readFileSync(file, 'utf8')))
+        .map((file) => path.relative(src, file));
+    expect(stale, stale.join('\n')).toEqual([]);
+});

@@ -14,7 +14,7 @@ import StoreHeader from './views/base/StoreHeader';
 import StoreFooter from './views/base/StoreFooter';
 import NotFound from './views/base/NotFound';
 
-// Storefront (Noore design)
+// Storefront
 import Home from './views/shop/home';
 import Shop from './views/shop/Products';
 import ProductDetail from './views/shop/ProductDetail';
@@ -33,7 +33,7 @@ import OrderDetail from './views/customer/OrderDetail';
 
 // Pages a shopper never opens are kept out of the storefront's own download and fetched only
 // when someone actually goes there. The admin area alone (with its rich-text editor) is most of
-// the JavaScript in this project; a shopper should not be waiting for it before seeing a candle.
+// the JavaScript in this project; a shopper should not be waiting for it before seeing a product.
 const lazyPage = (loader) => lazy(loader);
 
 // Older customer pages, still in their original Bootstrap styling
@@ -68,13 +68,13 @@ const ShopNotReady = lazyPage(() => import('./views/owner/ShopNotReady'));
 
 // Shown for the moment a lazily-loaded page is being fetched.
 function PageLoading() {
-    return <div className="px-5 py-24 text-center text-sm text-stone" role="status">Loading...</div>;
+    return <div className="px-5 py-24 text-center text-sm text-subtle" role="status">Loading...</div>;
 }
 
-// The storefront: Noore header and footer around a Noore-styled page.
+// The storefront: header and footer around a storefront page.
 function StorefrontLayout() {
     return (
-        <div className="noore-shell font-sans" data-layout="storefront">
+        <div className="ui-shell font-body" data-layout="storefront">
             <StoreHeader />
             <Outlet />
             <StoreFooter />
@@ -83,10 +83,10 @@ function StorefrontLayout() {
 }
 
 // Older pages keep their Bootstrap styling (loaded only while they are open) inside the same
-// Noore header and footer.
+// storefront header and footer.
 function LegacyLayout() {
     return (
-        <div className="noore-shell" data-layout="legacy">
+        <div className="ui-shell" data-layout="legacy">
             <LegacyStyles />
             <StoreHeader />
             <Outlet />
@@ -115,7 +115,7 @@ function AdminArea() {
     const location = useLocation();
     if (!isStaff) {
         return (
-            <div className="noore-shell font-sans" data-layout="storefront">
+            <div className="ui-shell font-body" data-layout="storefront">
                 <StoreHeader />
                 <NotFound />
                 <StoreFooter />
@@ -126,7 +126,7 @@ function AdminArea() {
     // fixes it. The owner-order and review screens do not need a shop, so they still open.
     if (!hasShop && !location.pathname.includes('/owner/')) {
         return (
-            <div className="noore-shell font-sans" data-layout="admin">
+            <div className="ui-shell font-body" data-layout="admin">
                 <StoreHeader />
                 <ShopNotReady />
                 <StoreFooter />
@@ -134,11 +134,11 @@ function AdminArea() {
         );
     }
 
-    // `noore-admin` is what src/theme/admin.css hangs off: it gives the dashboard's existing
-    // Bootstrap-style markup (cards, tables, buttons, forms) the Noore look, so the admin area
+    // `ui-admin` is what src/theme/admin.css hangs off: it gives the dashboard's existing
+    // Bootstrap-style markup (cards, tables, buttons, forms) the store's look, so the admin area
     // no longer loads Bootstrap at all.
     return (
-        <div className="noore-shell noore-admin" data-layout="admin">
+        <div className="ui-shell ui-admin" data-layout="admin">
             <StoreHeader />
             <Outlet />
         </div>
@@ -152,7 +152,7 @@ function OldDashboardAddress() {
     const location = useLocation();
     if (!isStaff) {
         return (
-            <div className="noore-shell font-sans" data-layout="storefront">
+            <div className="ui-shell font-body" data-layout="storefront">
                 <StoreHeader />
                 <NotFound />
                 <StoreFooter />

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Restore a database backup into a SCRATCH database and check it, without touching the live one.
 #
-#   deploy/restore.sh /var/backups/noore/db-20261003-023000.dump  [scratch_db_name]
+#   deploy/restore.sh /var/backups/ayura/db-20261003-023000.dump  [scratch_db_name]
 #
 # Needs ADMIN_DATABASE_URL: a connection that may create databases (e.g. the postgres
 # superuser's "postgres" database). Prints row counts of the main tables so the result can be
@@ -9,7 +9,7 @@
 set -euo pipefail
 
 dump="${1:?usage: restore.sh <db dump file> [scratch database name]}"
-scratch="${2:-noore_restore_check}"
+scratch="${2:-ayura_restore_check}"
 : "${ADMIN_DATABASE_URL:?ADMIN_DATABASE_URL is not set (a connection allowed to create databases)}"
 
 [ -f "$dump" ] || { echo "no such file: $dump" >&2; exit 1; }

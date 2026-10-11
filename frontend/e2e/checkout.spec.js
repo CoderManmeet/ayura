@@ -23,7 +23,7 @@ const signOut = async (page) => {
     await expect.poll(async () => (await page.context().cookies()).some((c) => c.name === 'access_token')).toBe(false);
 };
 
-const addCandle = async (page, slug, size) => {
+const addProduct = async (page, slug, size) => {
     await page.goto(`/detail/${slug}`);
     await page.getByTestId('option-Size').getByRole('button', { name: size }).click();
     const added = page.waitForResponse((r) => r.url().includes('/cart-view/') && r.request().method() === 'POST');
@@ -51,24 +51,24 @@ const confirmDialog = async (page) => {
 };
 
 test('G3: a guest places a Cash on Delivery order end to end and can ask for an account link', async ({ page }) => {
-    await addCandle(page, 'noore-vanilla-bean', '200 g');
+    await addProduct(page, 'face-serum', '50 ml');
     await goToCheckout(page);
 
     // Online payment is the default; the customer switches to Cash on Delivery.
     await expect(page.getByLabel('UPI / Card / Netbanking')).toBeChecked();
     await page.getByLabel('Cash on delivery').check();
-    await expect(page.getByTestId('checkout-summary')).toContainText('You pay ₹878 in cash when your order arrives');
+    await expect(page.getByTestId('checkout-summary')).toContainText('You pay ₹728 in cash when your order arrives');
     await page.getByTestId('place-cod').click();
 
     await expect(page).toHaveURL(/\/order\//);
     await expect(page.getByTestId('order-state')).toContainText('Order placed. Thank you!');
-    await expect(page.getByTestId('order-state')).toContainText('₹878');
-    await expect(page.getByTestId('confirmation-total')).toHaveText('₹878');
+    await expect(page.getByTestId('order-state')).toContainText('₹728');
+    await expect(page.getByTestId('confirmation-total')).toHaveText('₹728');
     await expect(page.locator('body')).not.toContainText('$');
 
     // The cart is empty again.
     await page.goto('/cart/');
-    await expect(page.getByText('Your Cart Is Empty')).toBeVisible();
+    await expect(page.getByText('Your bag is empty.')).toBeVisible();
 
     // Guest: "Create an account to track this order" (the link goes to the order's email only).
     await page.goBack();
@@ -89,7 +89,7 @@ test('G3: online payment hands the stored total to Razorpay Checkout and nothing
             body: JSON.stringify({
                 order_oid: 'x',
                 options: {
-                    key: 'rzp_test_e2eKeyId', amount: 127800, currency: 'INR', name: 'Noore Candles',
+                    key: 'rzp_test_e2eKeyId', amount: 67800, currency: 'INR', name: 'Ayura',
                     description: 'Order', order_id: 'order_E2Ehandoff',
                     prefill: { name: 'Asha Rao', email: 'guest@example.com', contact: '+919876543210' },
                 },
@@ -101,9 +101,10 @@ test('G3: online payment hands the stored total to Razorpay Checkout and nothing
         body: 'window.Razorpay = function (options) { window.__rzpOptions = options; this.on = function () {}; this.open = function () { window.__rzpOpened = true; }; };',
     }));
 
-    await addCandle(page, 'noore-sandalwood', '300 g');
+    // Shampoo 400 ml (Rs 599) + Rs 79 shipping = Rs 678.
+    await addProduct(page, 'shampoo', '400 ml');
     await goToCheckout(page);
-    await expect(page.getByTestId('pay-online')).toHaveText('Pay ₹1,199');
+    await expect(page.getByTestId('pay-online')).toHaveText('Pay ₹678');
     await page.getByTestId('pay-online').click();
 
     await expect.poll(() => page.evaluate(() => window.__rzpOpened === true)).toBe(true);
@@ -123,10 +124,10 @@ test('G3: online payment hands the stored total to Razorpay Checkout and nothing
 });
 
 test('G3 + G4: owner confirms, ships and delivers a COD order; the customer buys it again', async ({ page }) => {
-    // --- the customer orders two candles, Cash on Delivery
+    // --- the customer orders two products, Cash on Delivery
     await signIn(page, CUSTOMER);
-    await addCandle(page, 'noore-lavender', '100 g');
-    await addCandle(page, 'noore-vanilla-bean', '100 g');
+    await addProduct(page, 'face-serum', '30 ml');
+    await addProduct(page, 'hair-oil', '100 ml');
     await goToCheckout(page, CUSTOMER);
     await page.getByLabel('Cash on delivery').check();
     await page.getByTestId('place-cod').click();
@@ -171,14 +172,15 @@ test('G3 + G4: owner confirms, ships and delivers a COD order; the customer buys
 
     await expect(page).toHaveURL(/\/cart\/$/);
     await expect(page.getByTestId('cart-line')).toHaveCount(2);
-    await expect(page.getByTestId('summary-subtotal')).toHaveText('₹998');
+    // Face Serum 30 ml (Rs 449) + Hair Oil 100 ml (Rs 299) = Rs 748, plus Rs 79 shipping.
+    await expect(page.getByTestId('summary-subtotal')).toHaveText('₹748');
     await expect(page.getByTestId('summary-shipping')).toHaveText('₹79');
-    await expect(page.getByTestId('summary-total')).toHaveText('₹1,077');
+    await expect(page.getByTestId('summary-total')).toHaveText('₹827');
 
     // A delivered product can now be reviewed by this customer; the review waits for moderation.
-    await page.goto('/detail/noore-lavender');
-    await page.locator('#reviewText').fill('Burns evenly and smells lovely.');
+    await page.goto('/detail/face-serum');
+    await page.locator('#reviewText').fill('Light and easy to use every day.');
     await page.getByRole('button', { name: 'Submit review' }).click();
     await expect(page.getByTestId('review-box')).toContainText('will appear once it has been checked');
-    await expect(page.getByText('Burns evenly and smells lovely.')).toHaveCount(0);
+    await expect(page.getByText('Light and easy to use every day.')).toHaveCount(0);
 });
