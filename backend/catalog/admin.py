@@ -6,8 +6,8 @@ from inventory.services import available_qty, on_hand_qty
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ["sku", "product", "name", "options", "price_rupees", "mrp_rupees", "perishable", "is_default",
-                    "active", "on_hand", "available"]
+    list_display = ["sku", "product", "name", "options", "net_quantity", "net_quantity_unit", "price_rupees",
+                    "mrp_rupees", "perishable", "is_default", "active", "on_hand", "available"]
     list_filter = ["active", "is_default", "perishable"]
     search_fields = ["sku", "name", "product__title"]
     autocomplete_fields = ["product"]

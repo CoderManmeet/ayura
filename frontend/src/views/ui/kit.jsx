@@ -183,10 +183,14 @@ export function ProductRail({ children, label = 'Products' }) {
 }
 
 
+// The owner's short benefit line ("A light serum for everyday use") is shown over the photo
+// when a mouse hovers the card or the keyboard focuses it, and always under the name on a phone,
+// where there is no hover. It is the owner's own wording, shown as typed.
 export function ProductCard({ product, inRail = false }) {
     const variants = product.variants || [];
     const soldOut = product.available_qty === 0;
     const strike = variants.find((variant) => variant.is_default)?.strikethrough;
+    const benefit = (product.benefit_line || '').trim();
     return (
         <article className={`group ${inRail ? 'w-[72vw] shrink-0 snap-start sm:w-[46vw] lg:w-[23rem]' : ''}`} data-testid="product-card">
             <Link to={`/detail/${product.slug}`} className="relative block overflow-hidden bg-muted">
@@ -194,6 +198,12 @@ export function ProductCard({ product, inRail = false }) {
                     {<Photo src={product.image} alt={product.title} width={SIZES.card} className="size-full object-cover transition-transform duration-700 group-hover:scale-105" />}
                 </div>
                 {soldOut && <span className="absolute left-3 top-3 bg-canvas px-2 py-1 ui-caption">Sold out</span>}
+                {benefit &&
+                    <span className="absolute inset-x-0 bottom-0 hidden bg-ink/85 px-4 py-4 text-sm leading-6 text-canvas opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100 md:block"
+                        data-testid="product-benefit-overlay">
+                        {benefit}
+                    </span>
+                }
             </Link>
             <div className="flex items-start justify-between gap-3 pt-4">
                 <h3 className="font-display text-xl"><Link to={`/detail/${product.slug}`}>{product.title}</Link></h3>
@@ -203,6 +213,7 @@ export function ProductCard({ product, inRail = false }) {
                     {variants.length <= 1 && strike && <s className="ml-2 text-subtle">{formatINR(strike.compare_at_paise)}</s>}
                 </p>
             </div>
+            {benefit && <p className="mt-1 text-xs leading-5 text-subtle md:hidden" data-testid="product-benefit">{benefit}</p>}
             <Link to={`/detail/${product.slug}`} className="ui-btn-outline mt-4 w-full">{variants.length > 1 ? 'Choose a size' : 'View product'}</Link>
         </article>
     );

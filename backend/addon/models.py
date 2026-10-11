@@ -40,6 +40,14 @@ class ConfigSettings(models.Model):
     shipping_flat_paise = models.BigIntegerField(default=7900, help_text="Flat shipping charged once per order, in paise (Rs 79 = 7900).")
     free_shipping_threshold_paise = models.BigIntegerField(default=99900, help_text="Shipping is free when the subtotal after discount is at least this many paise (Rs 999 = 99900).")
     tax_rate_bps = models.PositiveIntegerField(default=0, help_text="Tax rate in basis points (18% = 1800). Prices are tax-inclusive: tax is carved out of the price, never added on top. 0 while the business is not GST-registered.")
+
+    # --- product information shown on every product page (Phase B, Ayura). Store-wide, because
+    # every product is made by the same maker. Blank = not shown. Which of these the law requires,
+    # and in what wording, is a question for the owner's professional (ROADMAP L3).
+    maker_name = models.CharField(max_length=200, blank=True, default="", help_text="Name of the maker (manufactured and marketed by).")
+    maker_address = models.TextField(blank=True, default="", help_text="Maker's full address.")
+    country_of_origin = models.CharField(max_length=100, blank=True, default="", help_text="For example: India.")
+    consumer_care_contact = models.TextField(blank=True, default="", help_text="Customer care contact: name or role, phone and email.")
     
     class Meta:
         verbose_name = ("Settings")

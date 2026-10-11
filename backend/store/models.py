@@ -185,6 +185,9 @@ class Category(models.Model):
     active = models.BooleanField(default=True)
     # Slug for SEO-friendly URLs
     slug = models.SlugField(null=True, blank=True)
+    # Phase B (Ayura): a category may sit inside another (Skincare > Face > Serums). Empty for a
+    # top-level category. PROTECT: a category that still has sub-categories cannot be deleted.
+    parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="children")
 
     class Meta:
         verbose_name_plural = "Categories"
@@ -196,6 +199,31 @@ class Category(models.Model):
     def __str__(self):
         return self.title
     
+    def ancestors(self):
+        """Parents from the nearest upwards. Stops at a loop instead of running forever."""
+        seen, node, chain = {self.pk}, self.parent, []
+        while node is not None and node.pk not in seen:
+            chain.append(node)
+            seen.add(node.pk)
+            node = node.parent
+        return chain
+
+    def would_create_cycle(self, new_parent):
+        """True when making `new_parent` this category's parent would put it inside itself."""
+        if new_parent is None:
+            return False
+        if self.pk is not None and new_parent.pk == self.pk:
+            return True
+        return self.pk is not None and any(node.pk == self.pk for node in new_parent.ancestors())
+
+    def descendant_ids(self):
+        """This category's id and the ids of every category below it, at any depth."""
+        ids, frontier = {self.pk}, [self.pk]
+        while frontier:
+            frontier = list(Category.objects.filter(parent_id__in=frontier).exclude(pk__in=ids).values_list("pk", flat=True))
+            ids.update(frontier)
+        return ids
+
     # Returns the count of products in this category
     def product_count(self):
         product_count = Product.objects.filter(category=self).count()
@@ -305,6 +333,14 @@ class Product(models.Model):
     
     # Date of product creation
     date = models.DateTimeField(default=timezone.now)
+
+    # --- personal-care information (Phase B, Ayura). Every word here is typed by the owner;
+    # nothing is generated. Blank fields are simply not shown on the product page. -------------
+    # One short line shown on the product card: what the product is for, in cosmetic language.
+    benefit_line = models.CharField(max_length=120, blank=True, default="")
+    ingredients = models.TextField(blank=True, default="")
+    how_to_use = models.TextField(blank=True, default="")
+    cautions = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ['-id']

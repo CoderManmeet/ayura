@@ -33,7 +33,10 @@ def test_seed_ayura_creates_the_placeholder_catalogue_and_is_idempotent(settings
     call_command("seed_ayura")
     call_command("seed_ayura")
 
-    assert sorted(Category.objects.values_list("slug", flat=True)) == ["bodycare", "haircare", "skincare"]
+    assert sorted(Category.objects.values_list("slug", flat=True)) == ["bodycare", "face", "haircare", "lips", "skincare"]
+    # Phase B: Face and Lips sit inside Skincare.
+    assert {c.slug: (c.parent.slug if c.parent else None) for c in Category.objects.all()} == {
+        "skincare": None, "face": "skincare", "lips": "skincare", "haircare": None, "bodycare": None}
     assert Product.objects.count() == 8
     assert ProductVariant.objects.count() == 15
     assert Batch.objects.count() == 15
@@ -46,6 +49,9 @@ def test_seed_ayura_creates_the_placeholder_catalogue_and_is_idempotent(settings
         assert all(v.options == {"Size": v.name} for v in variants)
         assert all(available_qty(v) == 20 for v in variants)
         assert all(v.mrp_paise > v.price_paise for v in variants)
+        # Phase B: every size declares its net quantity, matching its label.
+        assert all(v.net_quantity_label == v.name for v in variants)
+        assert product.benefit_line and product.how_to_use and product.cautions
 
     # Opening batches carry a best-before date, so FEFO has something to order by.
     assert not Batch.objects.filter(best_before__isnull=True).exists()
@@ -64,7 +70,8 @@ def test_seeded_copy_makes_no_banned_claim(settings):
 
     texts = []
     for product in Product.objects.all():
-        texts += [product.title, product.description or ""]
+        texts += [product.title, product.description or "", product.benefit_line, product.how_to_use,
+                  product.cautions, product.ingredients]
     texts += list(ProductVariant.objects.values_list("name", flat=True))
     texts += list(Category.objects.values_list("title", flat=True))
     blob = " ".join(texts).lower()

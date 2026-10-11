@@ -37,7 +37,7 @@ class ProductVariantInlineAdmin(admin.TabularInline):
 
     model = _ProductVariant
     extra = 0
-    fields = ['sku', 'name', 'options', 'price_paise', 'mrp_paise', 'weight_grams', 'is_default', 'active']
+    fields = ['sku', 'name', 'options', 'net_quantity', 'net_quantity_unit', 'price_paise', 'mrp_paise', 'weight_grams', 'is_default', 'active']
     show_change_link = True
 
 
@@ -81,7 +81,9 @@ class CartAdmin(ImportExportModelAdmin):
     
 class CategoryAdmin(ImportExportModelAdmin):
     list_editable = [ 'active']
-    list_display = ['title', 'thumbnail', 'active']
+    list_display = ['title', 'parent', 'slug', 'active']
+    list_filter = ['parent']
+    search_fields = ['title', 'slug']
 
     
 class TagAdmin(ImportExportModelAdmin):

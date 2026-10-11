@@ -201,7 +201,9 @@ function AddProduct() {
                 title: 'Product created',
                 text: `"${response.data?.title || product.title}" has been added. Add its sizes and stock next.`,
             });
-            navigate('/admin-area/products/')
+            // Straight to the sizes-and-stock screen for the new product (Ayura phase B). If the
+            // server did not send the product id back, fall back to the product list.
+            navigate(response.data?.pid ? `/admin-area/owner/products/${response.data.pid}/` : '/admin-area/products/')
 
 
 

@@ -1,7 +1,7 @@
 from django.urls import path
 from userauths import views as userauths_views
 from store import views as store_views
-from store import payment_views, owner_views
+from store import payment_views, owner_views, owner_catalogue
 from core.health import HealthView
 from core.jobs_api import RunJobsView
 from customer import views as customer_views
@@ -77,6 +77,15 @@ urlpatterns = [
     path('owner/orders/<order_oid>/action/', owner_views.OwnerOrderActionView.as_view(), name='owner-order-action'),
     path('owner/reviews/', owner_views.OwnerReviewListView.as_view(), name='owner-reviews'),
     path('owner/reviews/<int:review_id>/moderate/', owner_views.OwnerReviewModerateView.as_view(), name='owner-review-moderate'),
+
+    # Owner (staff) catalogue: categories, product details, sizes, stock (Ayura phase B)
+    path('owner/categories/', owner_catalogue.OwnerCategoryListView.as_view(), name='owner-categories'),
+    path('owner/categories/<int:category_id>/', owner_catalogue.OwnerCategoryDetailView.as_view(), name='owner-category-detail'),
+    path('owner/products/<str:pid>/', owner_catalogue.OwnerProductView.as_view(), name='owner-product'),
+    path('owner/products/<str:pid>/variants/', owner_catalogue.OwnerVariantCreateView.as_view(), name='owner-variant-create'),
+    path('owner/variants/<int:variant_id>/', owner_catalogue.OwnerVariantDetailView.as_view(), name='owner-variant-detail'),
+    path('owner/variants/<int:variant_id>/stock/', owner_catalogue.OwnerReceiveStockView.as_view(), name='owner-variant-stock'),
+    path('owner/batches/<int:batch_id>/', owner_catalogue.OwnerBatchDetailView.as_view(), name='owner-batch-detail'),
 
     # Customer API Endpoints
     path('customer/orders/<user_id>/', customer_views.OrdersAPIView.as_view(), name='customer-orders'),

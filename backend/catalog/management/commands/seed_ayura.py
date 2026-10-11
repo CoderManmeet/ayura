@@ -3,9 +3,9 @@ Seed a placeholder Ayura catalogue for LOCAL DEVELOPMENT and the Playwright suit
 
     python manage.py seed_ayura
 
-Creates three categories (Skincare, Haircare, Bodycare), eight placeholder products with their
-sizes, opening stock booked through the stock ledger, a simple placeholder picture per product,
-and one demo coupon. Everything here is placeholder data: names, descriptions, sizes and prices
+Creates categories (Skincare, with Face and Lips inside it; Haircare; Bodycare), eight placeholder
+products with their sizes and net quantities, care information, opening stock booked through the
+stock ledger, a simple placeholder picture per product, and one demo coupon. Everything here is placeholder data: names, descriptions, sizes and prices
 are not the brand's real catalogue.
 
 Wording rules (ROADMAP-AYURA guardrails): cosmetic language only. No disease or treatment
@@ -43,22 +43,38 @@ BANNED_CLAIM_WORDS = (
     "reverses", "medicine", "medicinal", "candle", "noore",
 )
 
+# (slug, title, parent slug). Parents come before their children.
 CATEGORIES = (
-    ("skincare", "Skincare"),
-    ("haircare", "Haircare"),
-    ("bodycare", "Bodycare"),
+    ("skincare", "Skincare", None),
+    ("face", "Face", "skincare"),
+    ("lips", "Lips", "skincare"),
+    ("haircare", "Haircare", None),
+    ("bodycare", "Bodycare", None),
 )
+
+# Placeholder care information, in cosmetic language (product slug -> (benefit line, how to use)).
+CARE = {
+    "face-serum": ("A light serum for everyday use", "Smooth two or three drops over clean skin, morning or night."),
+    "face-scrub": ("A weekly scrub for softer-feeling skin", "Massage gently over damp skin once or twice a week, then rinse."),
+    "day-moisturiser": ("A daily moisturiser for normal to dry skin", "Apply to clean skin every morning."),
+    "hair-oil": ("A pre-wash oil for the scalp and lengths", "Massage into the scalp and lengths, leave for an hour, then wash."),
+    "shampoo": ("Helps cleanse the hair and scalp", "Lather into wet hair, then rinse well."),
+    "body-butter": ("A rich butter for dry areas", "Warm a little between your palms and smooth over dry skin."),
+    "body-oil": ("A body oil for after the bath", "Smooth over damp skin after a bath."),
+    "lip-balm": ("A balm to keep your lips soft", "Apply whenever your lips feel dry."),
+}
+CAUTIONS = "For external use only. Patch test before first use. Keep away from eyes. Store in a cool, dry place."
 
 # (slug, title, category slug, shape for the placeholder picture, description, featured, sizes)
 # sizes: (label, shipping weight in grams incl. packaging, price paise, MRP paise)
 PRODUCTS = (
-    ("face-serum", "Face Serum", "skincare", "dropper",
+    ("face-serum", "Face Serum", "face", "dropper",
      "A lightweight face serum for everyday use, morning or night.", True,
      (("30 ml", 90, 44900, 49900), ("50 ml", 130, 64900, 69900))),
-    ("face-scrub", "Face Scrub", "skincare", "jar",
+    ("face-scrub", "Face Scrub", "face", "jar",
      "A gentle-feeling face scrub to use once or twice a week on damp skin.", True,
      (("50 g", 110, 34900, 39900), ("100 g", 180, 54900, 59900))),
-    ("day-moisturiser", "Day Moisturiser", "skincare", "jar",
+    ("day-moisturiser", "Day Moisturiser", "face", "jar",
      "A soft daily moisturiser for the face, for normal to dry skin.", True,
      (("50 g", 110, 39900, 44900), ("100 g", 180, 59900, 64900))),
     ("hair-oil", "Hair Oil", "haircare", "bottle",
@@ -73,7 +89,7 @@ PRODUCTS = (
     ("body-oil", "Body Oil", "bodycare", "bottle",
      "A body oil to smooth over damp skin after a bath.", False,
      (("100 ml", 160, 39900, 44900), ("200 ml", 280, 64900, 69900))),
-    ("lip-balm", "Lip Balm", "skincare", "tin",
+    ("lip-balm", "Lip Balm", "lips", "tin",
      "A lip balm to keep in your bag.", False,
      (("10 g", 40, 14900, 17900),)),
 )
@@ -138,7 +154,9 @@ class Command(BaseCommand):
             # Products are attached to the owner's shop when one exists, so they show up in
             # the owner dashboard. No shop is created here.
             shop = Vendor.objects.order_by("id").first()
-            categories = {slug: self._category(slug, title) for slug, title in CATEGORIES}
+            categories = {}
+            for slug, title, parent_slug in CATEGORIES:
+                categories[slug] = self._category(slug, title, categories.get(parent_slug))
 
             created_products = created_variants = stocked = 0
             for slug, title, category_slug, shape, description, featured, sizes in PRODUCTS:
@@ -160,10 +178,10 @@ class Command(BaseCommand):
             f"{'created' if coupon_created else 'already present'}."
         ))
 
-    def _category(self, slug, title):
+    def _category(self, slug, title, parent=None):
         category = Category.objects.filter(slug=slug).first()
         if category is None:
-            category = Category.objects.create(title=title, slug=slug, active=True)
+            category = Category.objects.create(title=title, slug=slug, active=True, parent=parent)
         return category
 
     def _product(self, slug, title, category, description, featured, shape, shop, pictures):
@@ -172,11 +190,16 @@ class Command(BaseCommand):
             return product, False
         _label, _grams, price_paise, mrp_paise = next(
             sizes for s, _t, _c, _sh, _d, _f, sizes in PRODUCTS if s == slug)[0]
+        benefit_line, how_to_use = CARE[slug]
         product = Product.objects.create(
             title=title,
             slug=slug,
             category=category,
             description=description + PLACEHOLDER_NOTE,
+            benefit_line=benefit_line,
+            how_to_use=how_to_use,
+            cautions=CAUTIONS,
+            ingredients="[PLACEHOLDER] The full ingredient list goes here, exactly as on the label.",
             price=from_paise(price_paise),
             old_price=from_paise(mrp_paise),
             stock_qty=0,
@@ -194,8 +217,10 @@ class Command(BaseCommand):
         if variant is not None:
             return variant, False
 
+        amount, unit = label.split(" ")
         fields = dict(
             sku=sku, name=label, options={"Size": label}, weight_grams=grams,
+            net_quantity=int(amount), net_quantity_unit=unit,
             price_paise=price_paise, mrp_paise=mrp_paise, perishable=False, active=True,
         )
         # Creating the product created its default variant; the first size takes that slot.

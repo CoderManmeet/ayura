@@ -171,7 +171,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = 'media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Where uploads are written when Cloudinary is not used. The Playwright suite points this at its
+# own throwaway folder (backend/e2e-media/), so uploading a photo in a test never touches media/.
+MEDIA_ROOT = Path(env.str("DJANGO_MEDIA_ROOT", default=str(BASE_DIR / 'media')))
 
 # Uploaded product photos.
 #

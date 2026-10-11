@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
-    Bell, Boxes, ClipboardList, LayoutDashboard, LogOut, Package, PlusCircle,
+    Bell, Boxes, ClipboardList, FolderTree, LayoutDashboard, LogOut, Package, PlusCircle,
     Settings as SettingsIcon, Star, Store, Tag, TrendingUp,
 } from 'lucide-react';
 
@@ -12,6 +12,7 @@ const DAILY = [
     { to: '/admin-area/owner/orders/', label: 'Orders', Icon: ClipboardList, hint: 'COD, shipping' },
     { to: '/admin-area/products/', label: 'Products', Icon: Package },
     { to: '/admin-area/product/new/', label: 'Add product', Icon: PlusCircle },
+    { to: '/admin-area/owner/categories/', label: 'Categories', Icon: FolderTree },
     { to: '/admin-area/owner/reviews/', label: 'Review moderation', Icon: Star },
 ];
 

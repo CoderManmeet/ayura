@@ -4,7 +4,8 @@
 //
 // It starts its own backend and frontend on spare ports, against a throwaway SQLite database
 // (backend/e2e.sqlite3, recreated on every run and git-ignored) seeded by `seed_ayura`
-// (with --no-pictures, so the suite never writes files into backend/media/).
+// (with --no-pictures). Photos the suite uploads go to backend/e2e-media/ (also recreated and
+// git-ignored), so the suite never writes files into backend/media/.
 // Your real db.sqlite3 and your running dev servers are never touched.
 //
 // The backend is started with whatever `python` is on PATH, so activate the virtualenv first
@@ -17,6 +18,8 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const backendDir = path.resolve(here, '..', 'backend');
 const databaseFile = path.join(backendDir, 'e2e.sqlite3');
+// Photos uploaded by the suite (the admin-area product test) go here, never into media/.
+const mediaDir = path.join(backendDir, 'e2e-media');
 
 const API_PORT = Number(process.env.E2E_API_PORT || 8011);
 const WEB_PORT = Number(process.env.E2E_WEB_PORT || 5183);
@@ -26,6 +29,7 @@ const py = PYTHON.includes(' ') ? `"${PYTHON}"` : PYTHON;
 // A fresh database for every run. Workers load this file too; only the runner may delete.
 if (process.env.TEST_WORKER_INDEX === undefined && !process.env.E2E_BASE_URL) {
     fs.rmSync(databaseFile, { force: true });
+    fs.rmSync(mediaDir, { recursive: true, force: true });
 }
 
 // sqlite:///C:/path/e2e.sqlite3 on Windows, sqlite:////home/.../e2e.sqlite3 elsewhere.
@@ -38,7 +42,7 @@ const DEPLOYED_URL = (process.env.E2E_BASE_URL || '').replace(/\/$/, '');
 
 export default defineConfig({
     testDir: './e2e',
-    testMatch: DEPLOYED_URL ? 'production.spec.js' : ['storefront.spec.js', 'checkout.spec.js', 'brand.spec.js', 'coldstart.spec.js'],
+    testMatch: DEPLOYED_URL ? 'production.spec.js' : ['storefront.spec.js', 'checkout.spec.js', 'brand.spec.js', 'coldstart.spec.js', 'catalogue.spec.js'],
     timeout: 60_000,
     expect: { timeout: 10_000 },
     fullyParallel: false,
@@ -61,6 +65,7 @@ export default defineConfig({
             env: {
                 ...process.env,
                 DATABASE_URL: databaseUrl,
+                DJANGO_MEDIA_ROOT: mediaDir,
                 DJANGO_DEBUG: 'True',
                 DJANGO_ALLOWED_HOSTS: '127.0.0.1,localhost',
                 CORS_ALLOWED_ORIGINS: `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`,

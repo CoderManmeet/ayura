@@ -6,6 +6,12 @@ from core.models import AppendOnlyModel
 from store.models import Product
 
 
+NET_QUANTITY_UNITS = (
+    ("g", "g"),
+    ("ml", "ml"),
+)
+
+
 class ProductVariant(models.Model):
     """
     A sellable unit: the thing that carries a SKU, a price and stock.
@@ -32,7 +38,13 @@ class ProductVariant(models.Model):
     price_paise = models.BigIntegerField(validators=[MinValueValidator(0)])
     mrp_paise = models.BigIntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
 
+    # Packed weight in grams, for shipping. NOT the declared net quantity (see below).
     weight_grams = models.PositiveIntegerField(null=True, blank=True)
+
+    # The declared net quantity of the product in this pack, e.g. 30 ml or 50 g (Phase B, Ayura).
+    # Shown on the product page as "Net quantity". Empty until the owner enters it.
+    net_quantity = models.PositiveIntegerField(null=True, blank=True)
+    net_quantity_unit = models.CharField(max_length=2, choices=NET_QUANTITY_UNITS, blank=True, default="")
 
     # Perishable variants require a best_before on every batch and show it on the product page.
     perishable = models.BooleanField(default=False)
@@ -53,6 +65,13 @@ class ProductVariant(models.Model):
 
     def __str__(self):
         return f"{self.sku} ({self.product.title} / {self.name})"
+
+    @property
+    def net_quantity_label(self):
+        """'30 ml', or '' when the owner has not entered a net quantity."""
+        if self.net_quantity and self.net_quantity_unit:
+            return f"{self.net_quantity} {self.net_quantity_unit}"
+        return ""
 
     @property
     def available_qty(self):

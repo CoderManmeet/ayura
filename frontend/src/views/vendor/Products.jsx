@@ -137,6 +137,7 @@ function Products() {
                                         <td>
                                             <Link to={`/detail/${p.slug}`} className="btn btn-primary mb-1 me-2"><i className="fas fa-eye" /></Link>
                                             <Link to={`/admin-area/product/update/${p.pid}/`} className="btn btn-success mb-1 me-2"><i className="fas fa-edit" /></Link>
+                                            <Link to={`/admin-area/owner/products/${p.pid}/`} className="btn btn-outline-secondary mb-1 me-2" data-testid="sizes-stock-link">Sizes &amp; stock</Link>
                                             <button type='button' title={p.status === 'published' ? 'Hide from the shop' : 'Show in the shop'}
                                                 onClick={() => handleToggleVisibility(p)} className="btn btn-secondary mb-1 me-2">
                                                 <i className={p.status === 'published' ? 'fas fa-eye-slash' : 'fas fa-store'} />

@@ -122,8 +122,11 @@ class ConfigSettingsDetailView(generics.RetrieveAPIView):
 
 
 class CategoryListView(generics.ListAPIView):
+    """Active categories, each with its `parent` id (null at the top level), so the shop can
+    show them as a tree (Ayura phase B)."""
+
     serializer_class = CategorySerializer
-    queryset = Category.objects.filter(active=True)
+    queryset = Category.objects.filter(active=True).order_by("title")
     permission_classes = (AllowAny,)
 
 
@@ -190,8 +193,24 @@ class FeaturedProductListView(CatalogueListMixin, generics.ListAPIView):
 
 
 class ProductListView(CatalogueListMixin, generics.ListAPIView):
+    """
+    Every published product. `?category=<slug>` narrows the list to that category AND every
+    category inside it, at any depth (Ayura phase B): Skincare shows the face serums too.
+    An unknown or switched-off category shows nothing rather than everything.
+    """
+
     serializer_class = ProductSerializer
     permission_classes = (AllowAny,)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        slug = (self.request.GET.get("category") or "").strip()
+        if not slug:
+            return queryset
+        category = Category.objects.filter(slug=slug[:60], active=True).first()
+        if category is None:
+            return queryset.none()
+        return queryset.filter(category_id__in=category.descendant_ids())
 
 
 class ProductDetailView(generics.RetrieveAPIView):

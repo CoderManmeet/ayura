@@ -36,6 +36,205 @@ the owner's answers (Y1-Y20), the defaults taken (Z1-Z9) and the legal questions
 
 ---
 
+## Phase B decisions (11 Oct 2026)
+
+| # | Question | Decision | Why | Cost to reverse |
+|---|---|---|---|---|
+| B1 | One screen or two for sizes and stock | **One screen per product**, `views/owner/OwnerProduct.jsx` at `/admin-area/owner/products/<pid>/`: details, sizes, stock. The roadmap named `OwnerSizes.jsx` and `OwnerStock.jsx` | Stock is added per size; one page avoids jumping between two screens for the same product | Split the file |
+| B2 | Where the owner endpoints live | New `backend/store/owner_catalogue.py` (the roadmap said `owner_views.py`) | `owner_views.py` is the orders and reviews module; catalogue work is a separate concern | Move the classes |
+| B3 | Net-quantity backfill from `weight_grams` | **Not done.** No data migration copies `weight_grams` into net quantity | `weight_grams` is the packed shipping weight, packaging included, and the seeded sizes are millilitres. Copying it would declare a false net quantity (same reason as K5). Sizes show no net quantity until the owner types one | One data migration |
+| B4 | Where the claim-word warning appears | In the Details form of the new product screen, live while typing, and in the API response after saving (`warnings`). The legacy add/edit form has no benefit-line, how-to-use or cautions field, so it has no warning | The warning sits where the words are typed (Z4) | Low |
+| B5 | Products made in the old Add Product form | Created with one placeholder size "Default"; the first size added takes its place (keeping any stock typed at creation and the product's SKU). After creating a product, the form now opens its sizes-and-stock screen | No orphan "Default" size beside the real ones | Low |
+| B6 | Removing a category or a size | Neither can be deleted from the admin area: categories are hidden, sizes are switched off. The main size cannot be switched off until another is made main | Orders and products refer to them (rule 4) | n/a |
+| B7 | MRP on the product page | Shown twice when there is a reduction: as the struck price (existing G2 rule) and as a plain "MRP ₹X (inclusive of all taxes)" row in Product information. The row shows whatever MRP the owner entered; nothing is shown when there is none | The roadmap's Product information block; the declaration is separate from the discount display | Remove one row |
+| B8 | Uploads during the Playwright suite | New optional setting `DJANGO_MEDIA_ROOT`; the suite points it at `backend/e2e-media/` (deleted at the start of every run, git-ignored) | The new owner test uploads a product photo, and CLAUDE.md forbids tests writing into `backend/media/` | One line |
+| B9 | How money is typed | Rupees as text in the form ("449" or "449.50"), sent as text, turned into paise on the server by `core.money.to_paise`. A JSON number is refused | Rule 6: no float ever touches a price | Low |
+
+---
+
+## PHASE B — Personal-care catalogue (COMPLETED; label details still needed from the owner)
+
+### 1. PHASE COMPLETED
+
+**Phase B**, branch `phase/B-catalogue`, built on Phase A `7db852c`.
+
+- **Sub-categories.** A category can sit inside another (Skincare › Face). Loops are refused.
+  New admin screen **Categories** (sidebar): add, rename, move, hide or show.
+- **The shop filters by category** with chips: top-level categories, then one more row for
+  each level below the chosen one (Skincare → Face → Serums). `/shop?category=skincare` includes everything inside Skincare at any depth; an
+  unknown or hidden category shows nothing, never everything.
+- **Sizes and stock from the admin area** (no Django admin needed): Products → "Sizes & stock",
+  or straight after Add product. Per size: name, net quantity in g or ml, price, MRP, packed
+  shipping weight, optional SKU; edit, make main, switch off. Price above MRP is refused.
+  Price changes still write price history and an audit row.
+- **Add stock** per size: quantity made, made-on date, optional use-by date, cost per unit,
+  notes. It creates a batch and books it into the stock ledger. A batch's use-by date can be
+  added or corrected later (audited); batches past it are marked **Expired**; batches with no
+  date say so. Undated stock is never blocked (Y12).
+- **Benefit line** (max 120 characters) on the product tile: over the photo on hover or keyboard
+  focus on desktop, always under the name on phones.
+- **Claim-word warning** (Z4): words such as cures, heals, acne, natural, 100% are listed while
+  the owner types; saving still works. Word list: `backend/catalog/claims.py`.
+- **Product page:** breadcrumb (Shop / Skincare / Face / product), "Net quantity 30 ml" under the
+  price (follows the chosen size), the benefit line, How to use, Ingredients, Cautions, and a
+  **Product information** block (MRP inclusive of all taxes, net quantity, maker, address,
+  country of origin, consumer care) that shows only the fields that are filled in.
+- **Store-wide label details** (`maker_name`, `maker_address`, `country_of_origin`,
+  `consumer_care_contact`) exist and are public through `/api/v1/addon/`. They are **blank** and
+  are entered in Django admin → Addon → Config settings (see Known gaps).
+- `seed_ayura`: Face and Lips now sit inside Skincare; every placeholder product has a benefit
+  line, how to use, cautions and a placeholder ingredients line; every size has its net quantity.
+
+### 2. FILES CREATED
+
+- `backend/catalog/claims.py`
+- `backend/store/owner_catalogue.py`
+- `backend/store/migrations/0040_category_parent.py`
+- `backend/store/migrations/0041_product_care_fields.py`
+- `backend/catalog/migrations/0007_variant_net_quantity.py`
+- `backend/addon/migrations/0006_configsettings_label_fields.py`
+- `backend/catalog/tests/test_catalogue_b.py`
+- `backend/tests/test_media_root.py`
+- `frontend/src/views/owner/OwnerProduct.jsx`
+- `frontend/src/views/owner/OwnerCategories.jsx`
+- `frontend/e2e/catalogue.spec.js`
+
+### 3. FILES MODIFIED
+
+- Backend: `store/models.py` (Category `parent`, `ancestors`, `would_create_cycle`, `descendant_ids`; Product `benefit_line`, `ingredients`, `how_to_use`, `cautions`), `catalog/models.py` (`net_quantity`, `net_quantity_unit`, `net_quantity_label`), `addon/models.py` (four label fields), `api/urls.py` (seven owner routes), `store/serializers.py` (new fields in the public product and variant payloads), `store/views.py` (`?category=` filter with sub-categories; category list ordered by name), `store/admin.py`, `catalog/admin.py` (net quantity and parent columns), `catalog/management/commands/seed_ayura.py`, `catalog/tests/test_seed_ayura.py`, `backend/settings.py` (`DJANGO_MEDIA_ROOT`), `.env.example`
+- Frontend: `src/App.jsx` (two routes), `src/views/vendor/Sidebar.jsx` (Categories link), `src/views/vendor/AddProduct.jsx` (opens the new product's sizes-and-stock screen after creating it), `src/views/vendor/Products.jsx` ("Sizes & stock" button), `src/views/shop/Products.jsx` (category chips), `src/views/shop/ProductDetail.jsx`, `src/views/ui/kit.jsx` (benefit line on `ProductCard`), `playwright.config.js` (`catalogue.spec.js`, `e2e-media`)
+- Root: `.gitignore` (`e2e-media/`), `docs/BUILD_LOG.md`
+
+New owner endpoints (staff only):
+
+    GET   /api/v1/owner/categories/                 POST  /api/v1/owner/categories/
+    PATCH /api/v1/owner/categories/<id>/
+    GET   /api/v1/owner/products/<pid>/             PATCH /api/v1/owner/products/<pid>/
+    POST  /api/v1/owner/products/<pid>/variants/    PATCH /api/v1/owner/variants/<id>/
+    POST  /api/v1/owner/variants/<id>/stock/        PATCH /api/v1/owner/batches/<id>/
+
+No endpoint, model or field was removed or renamed.
+
+### 4. MIGRATIONS ADDED
+
+| Migration | What | Reverse |
+|---|---|---|
+| `store.0040_category_parent` | nullable `Category.parent` (PROTECT) | drops the column |
+| `store.0041_product_care_fields` | `benefit_line`, `ingredients`, `how_to_use`, `cautions` on Product (blank default) | drops them |
+| `catalog.0007_variant_net_quantity` | `net_quantity`, `net_quantity_unit` on ProductVariant (no backfill, B3) | drops them |
+| `addon.0006_configsettings_label_fields` | four label fields on ConfigSettings (blank default) | drops them |
+
+Back up first, then apply (from `backend\`):
+
+    New-Item -ItemType Directory -Force -Path ..\backups | Out-Null
+    Copy-Item db.sqlite3 "..\backups\db-$(Get-Date -Format 'yyyyMMdd-HHmmss').sqlite3"
+    python manage.py migrate
+
+Roll back Phase B only:
+
+    python manage.py migrate store 0039
+    python manage.py migrate catalog 0006
+    python manage.py migrate addon 0005
+
+Verified on a copy of the database: apply, roll back all four, re-apply, all clean;
+`makemigrations --check` reports no changes.
+
+### 5. ENV VARS ADDED
+
+- `DJANGO_MEDIA_ROOT` (backend, optional): folder for uploads when Cloudinary is not used.
+  Default `backend/media`. Only the Playwright suite sets it.
+
+### 6. TESTS ADDED
+
+`backend/catalog/tests/test_catalogue_b.py`, 13 tests: categories nest and the filter includes
+sub-categories (and shows nothing for an unknown or hidden one); a category cannot go inside
+itself; the first size replaces the placeholder, both sizes reach the shopper with their net
+quantity, price history and audit rows written; bad values (JSON number, text, price above MRP,
+unknown unit, blank label) refused with nothing written; SKUs made automatically or kept as
+typed, a duplicate refused; the main size cannot be switched off until another is main, and the
+legacy price follows the main size; a price change writes history and an audit row; receiving
+stock creates a batch and a ledger movement with the staff actor, undated stock allowed, bad
+values refused; a use-by date added later is audited and never moves stock; details save,
+risky words come back as warnings without blocking, 121 characters refused; whole-word claim
+matching; label details public through `addon/`; every endpoint 401 anonymous, 403 customer.
+
+`backend/tests/test_media_root.py`, 2 tests (default `media/`; follows `DJANGO_MEDIA_ROOT`).
+`backend/catalog/tests/test_seed_ayura.py` extended (parents, net quantities, care fields, and the
+banned-word check now covers the new text).
+
+Shown failing first: `test_catalogue_b.py` against `7db852c` fails at collection
+(`ModuleNotFoundError: No module named 'catalog.claims'`); `test_media_root.py` with the old
+`settings.py`: 1 failed, 1 passed (the default case passes either way).
+
+    python -m pytest catalog/tests/test_catalogue_b.py -q   ->  13 passed
+    python -m pytest -q                                      ->  217 passed, 2 skipped (SQLite)
+    $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
+    python -m pytest -q                                      ->  219 passed (PostgreSQL 16)
+
+Playwright, `frontend/e2e/catalogue.spec.js`, 3 tests: the owner creates a product in Add
+product (with a photo), lands on its sizes-and-stock screen, types a benefit line with "Cures"
+and sees the warning, sets Skincare › Face, adds 30 ml and 100 ml (the first replaces
+"Default"), is refused a 200 ml priced above its MRP, adds a dated and an undated batch, reaches
+the screen again from the product list, and adds a third-level category (Mists inside Face); a shopper filters by
+Skincare then Face, sees the third row of chips and an empty Mists, sees the benefit line on hover, opens the product and sees the breadcrumb,
+"Net quantity 30 ml" then "100 ml", the care sections and the MRP row, and no Ingredients section
+(none was typed); at 390 px the benefit line is under the name. Shown failing first against
+`7db852c`: 2 failed (no Face category; no benefit line), 1 not run (serial).
+
+    npm run build          ->  built
+    npx playwright test    ->  24 passed
+
+### 7. MANUAL VERIFICATION STEPS
+
+Back up and migrate (section 4), then:
+
+    python manage.py seed_ayura      (on a development database: it only adds what is missing)
+    python -m pytest -q
+    python manage.py runserver
+
+Second terminal: `cd frontend`, `npm run build`, `npm run dev`. Then:
+
+1. `/shop`: chips All, Bodycare, Haircare, Skincare. Click Skincare: a second row (All skincare, Face, Lips) and the Face and Lip products. Hover a card: the benefit line slides over the photo.
+2. Open Face Serum: breadcrumb Shop / Skincare / Face / Face Serum; "Net quantity 30 ml"; pick 50 ml and it changes; How to use, Ingredients, Cautions; Product information with MRP and net quantity.
+3. Sign in as the owner → Admin → Products → **Sizes & stock** on a product. Type "cures" in the benefit line: the warning appears. Add a size, add stock with and without a use-by date, set a use-by date later.
+4. Admin → **Categories**: add "Serums" inside Face. In the shop, choose Skincare, then Face: a third row of chips shows Serums.
+5. Add product: after "Product created" it opens the new product's sizes-and-stock screen.
+6. Django admin → Addon → Config settings: fill maker name, address, country of origin and consumer care; they appear in Product information.
+
+### 8. ASSUMPTIONS MADE (exhaustive)
+
+1. Decisions B1-B9.
+2. Net quantity is a whole number of g or ml (no decimals, no other units such as pieces).
+3. One set of label details for the whole store (Y13); nothing per product.
+4. "Expired" means the use-by date is before today (Asia/Kolkata); a batch expiring today is not yet expired.
+5. A use-by date must be after the made-on date; made-on cannot be in the future; made-on defaults to today.
+6. Batch codes are made from the size's SKU and the made-on date unless the owner types one (the API accepts it; the form does not show the field).
+7. Hidden categories stay in the owner's category select, marked "(hidden)"; products can still be put in them.
+8. Products of a hidden parent's visible sub-category still appear under "All"; the sub-category's chip appears only when its parent is shown.
+9. The legacy `stock_qty` typed in Add product still becomes the "Default" size's opening stock (E15); the new screen is the place to add stock afterwards.
+10. The warning list is a prompt, not a legal reading (L6).
+11. `seed_ayura` ingredients are a placeholder line marked `[PLACEHOLDER]`; cautions are generic placeholder text.
+
+### 9. KNOWN GAPS
+
+- **Label details are blank (L3, stop-and-ask item).** Maker name and address, country of origin and consumer-care contact must come from you, and which of them the law requires is question L3. Until then Product information shows only MRP and net quantity.
+- Label details are edited in Django admin, not the admin area; the shipping-settings screen in phase C is the natural home for them.
+- The legacy Size and Color tabs remain in Add product and Edit product. They do not create sizes a shopper can choose; sizes are made on the new screen. Removing the tabs is a removal proposal (rule 4).
+- The legacy edit form (`UpdateProduct.jsx`) is unchanged and has no benefit-line or care fields; it links nowhere to the new screen except through the product list.
+- Undated batches are shown, not blocked, on the product screen; flagging them before dispatch is phase D.
+- `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` still defaults to 30 (Z1 says 0 for Ayura). A batch whose use-by date is under 30 days away is not sold. Changing the default is left to phase D, where dispatch rules are built.
+- In the admin area the small help texts (`text-muted`) are low-contrast on the canvas colour, as in the other admin screens (`admin.css`).
+- Category images are not managed from the new screen (none are shown in the shop).
+
+### 10. NOT DONE AND WHY
+
+- Net-quantity backfill: B3.
+- Removing the legacy Size/Color tabs or `Product.stock_qty`: rule 4; proposals only.
+- Shipping and COD fee settings: phase C. Dispatch checks, samples, batch lookup: phase D.
+- Filling the label details or the real ingredients: the owner supplies them (L3).
+
+---
+
 ## PHASE A — Fork and rebrand (COMPLETED)
 
 ### 1. PHASE COMPLETED

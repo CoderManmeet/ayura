@@ -13,9 +13,10 @@ import { addToWishlist } from '../plugin/addToWishlist';
 import { CartContext } from '../plugin/Context';
 import { Heart } from 'lucide-react';
 import { formatINR } from '../../utils/money';
-import { BackLink, Loading, Photo } from '../ui/kit';
+import { Loading, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import usePageTitle from '../../utils/usePageTitle';
+import { useCachedApi } from '../../utils/apiCache';
 
 // Product page.
 //
@@ -45,6 +46,34 @@ const matches = (variant, selection, keys) => keys.every((key) => (variant.optio
 
 const STOCK_CLASS = { in_stock: 'text-success', low_stock: 'text-accent', sold_out: 'text-danger' };
 
+// "30 ml" from a size's declared net quantity; '' when the owner has not entered one.
+const netQuantityOf = (variant) => (variant?.net_quantity ? `${variant.net_quantity} ${variant.net_quantity_unit}` : '');
+
+// The category chain from the top down (Skincare, Face), from the shop's flat category list.
+const categoryChain = (categoryId, categories) => {
+    const byId = Object.fromEntries((categories || []).map((c) => [c.id, c]));
+    const chain = [];
+    const seen = new Set();
+    let node = byId[categoryId];
+    while (node && !seen.has(node.id)) {
+        chain.unshift(node);
+        seen.add(node.id);
+        node = node.parent ? byId[node.parent] : null;
+    }
+    return chain;
+};
+
+// Owner-typed care text, shown only when there is some.
+function CareSection({ title, text, testId }) {
+    if (!text || !text.trim()) return null;
+    return (
+        <section className="border-b border-line py-5" data-testid={testId}>
+            <h2 className="ui-label mb-2">{title}</h2>
+            <p className="whitespace-pre-line text-sm leading-7 text-subtle">{text}</p>
+        </section>
+    );
+}
+
 function ProductDetail() {
     const [product, setProduct] = useState(null)
     usePageTitle(product?.title);
@@ -64,6 +93,7 @@ function ProductDetail() {
     const axios = apiInstance
     const params = useParams()
     const addon = Addon()
+    const { data: categories } = useCachedApi('category/')
     const currentAddress = GetCurrentAddress()
     const userData = UserData()
     const cart_id = CartID()
@@ -181,11 +211,36 @@ function ProductDetail() {
     const rating = product.product_rating;
     const fullStars = rating ? Math.round(rating) : 0;
     const images = [product.image, ...gallery.map((g) => g.image)].filter((src, index, all) => src && all.indexOf(src) === index);
+    const categoryId = product.category && typeof product.category === 'object' ? product.category.id : product.category;
+    const chain = categoryChain(categoryId, categories);
+    const netQuantity = netQuantityOf(selectedVariant);
+
+    // Label information (what is printed on the pack), shown only for the fields that are
+    // filled in. The maker's details come from the store settings in the admin.
+    const productInfo = [
+        ['MRP', selectedVariant?.mrp_paise != null ? `${formatINR(selectedVariant.mrp_paise)} (inclusive of all taxes)` : ''],
+        ['Net quantity', netQuantity],
+        ['Made by', addon?.maker_name],
+        ['Address', addon?.maker_address],
+        ['Country of origin', addon?.country_of_origin],
+        ['Consumer care', addon?.consumer_care_contact],
+    ].filter(([, value]) => value && String(value).trim());
 
     return (
         <main>
             <div className="mx-auto max-w-[1440px] px-5 py-10 md:px-10 md:py-16">
-                <BackLink to="/shop">All products</BackLink>
+                <nav aria-label="Breadcrumb" className="mb-8 ui-caption text-subtle" data-testid="breadcrumb">
+                    <ol className="flex flex-wrap items-center gap-2">
+                        <li><Link to="/shop" className="hover:text-ink">Shop</Link></li>
+                        {chain.map((category) => (
+                            <li key={category.id} className="flex items-center gap-2">
+                                <span aria-hidden="true">/</span>
+                                <Link to={`/shop?category=${encodeURIComponent(category.slug)}`} className="hover:text-ink">{category.title}</Link>
+                            </li>
+                        ))}
+                        <li className="flex items-center gap-2"><span aria-hidden="true">/</span><span aria-current="page" className="text-ink">{product.title}</span></li>
+                    </ol>
+                </nav>
                 <div className="grid gap-10 md:grid-cols-2 md:gap-16">
                     {/* Gallery: one large photo, thumbnails beneath */}
                     <div>
@@ -219,9 +274,13 @@ function ProductDetail() {
                             {strike && <s className="font-body text-base text-subtle" data-testid="product-mrp">{formatINR(strike.compare_at_paise)}</s>}
                             {strike && strike.percent_off > 0 && <span className="font-body ui-caption text-accent" data-testid="product-percent-off">{strike.percent_off}% off</span>}
                         </p>
-                        <p className="mt-1 text-xs text-subtle">Inclusive of all taxes</p>
+                        <p className="mt-1 text-xs text-subtle">
+                            Inclusive of all taxes
+                            {netQuantity && <> · <span data-testid="product-net-quantity">Net quantity {netQuantity}</span></>}
+                        </p>
 
-                        {product.description && <p className="mt-7 whitespace-pre-line text-sm leading-7 text-subtle">{product.description}</p>}
+                        {product.benefit_line && <p className="mt-7 font-display text-xl" data-testid="product-benefit-line">{product.benefit_line}</p>}
+                        {product.description && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-subtle">{product.description}</p>}
 
                         {/* Variant picker: one row of buttons per option name */}
                         {optionKeys.map((key) => {
@@ -290,6 +349,25 @@ function ProductDetail() {
                                     <div className="flex justify-between gap-6 border-b border-line py-3" key={index}><dt className="ui-label">{s.title}</dt><dd className="text-right text-subtle">{s.content}</dd></div>
                                 ))}
                             </dl>
+                        }
+
+                        <div className="mt-10 border-t border-line">
+                            <CareSection title="How to use" text={product.how_to_use} testId="product-how-to-use" />
+                            <CareSection title="Ingredients" text={product.ingredients} testId="product-ingredients" />
+                            <CareSection title="Cautions" text={product.cautions} testId="product-cautions" />
+                        </div>
+
+                        {productInfo.length > 0 &&
+                            <section className="mt-8" data-testid="product-information">
+                                <h2 className="ui-label mb-2">Product information</h2>
+                                <dl className="text-sm">
+                                    {productInfo.map(([label, value]) => (
+                                        <div className="flex justify-between gap-6 border-b border-line py-3" key={label}>
+                                            <dt className="text-subtle">{label}</dt><dd className="whitespace-pre-line text-right">{value}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </section>
                         }
                     </div>
                 </div>

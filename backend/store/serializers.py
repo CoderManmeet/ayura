@@ -82,9 +82,9 @@ class ProductVariantSerializer(SafeDepthModelSerializer):
 
     class Meta:
         model = ProductVariant
-        fields = ["id", "sku", "name", "size", "color", "options", "weight_grams", "price_paise", "price",
-                  "mrp_paise", "mrp", "perishable", "is_default", "active", "available_qty", "stock",
-                  "strikethrough", "best_before"]
+        fields = ["id", "sku", "name", "size", "color", "options", "weight_grams", "net_quantity",
+                  "net_quantity_unit", "price_paise", "price", "mrp_paise", "mrp", "perishable", "is_default",
+                  "active", "available_qty", "stock", "strikethrough", "best_before"]
         read_only_fields = fields
 
     def get_available_qty(self, obj):
@@ -163,6 +163,11 @@ class ProductSerializer(SafeDepthModelSerializer):
             "title",
             "image",
             "description",
+            # Personal-care information typed by the owner (Ayura phase B).
+            "benefit_line",
+            "ingredients",
+            "how_to_use",
+            "cautions",
             "category",
             "tags",
             "brand",

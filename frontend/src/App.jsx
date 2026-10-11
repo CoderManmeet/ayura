@@ -64,6 +64,8 @@ const DashboardSettings = lazyPage(() => import('./views/vendor/Settings'));
 const OwnerOrders = lazyPage(() => import('./views/owner/OwnerOrders'));
 const OwnerOrderDetail = lazyPage(() => import('./views/owner/OwnerOrderDetail'));
 const OwnerReviews = lazyPage(() => import('./views/owner/OwnerReviews'));
+const OwnerProduct = lazyPage(() => import('./views/owner/OwnerProduct'));
+const OwnerCategories = lazyPage(() => import('./views/owner/OwnerCategories'));
 const ShopNotReady = lazyPage(() => import('./views/owner/ShopNotReady'));
 
 // Shown for the moment a lazily-loaded page is being fetched.
@@ -237,6 +239,8 @@ function App() {
                             <Route path="owner/orders/" element={<OwnerOrders />} />
                             <Route path="owner/orders/:oid/" element={<OwnerOrderDetail />} />
                             <Route path="owner/reviews/" element={<OwnerReviews />} />
+                            <Route path="owner/products/:pid/" element={<OwnerProduct />} />
+                            <Route path="owner/categories/" element={<OwnerCategories />} />
                             <Route path="*" element={<NotFound />} />
                         </Route>
 
