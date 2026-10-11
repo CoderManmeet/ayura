@@ -3,7 +3,7 @@
  *
  * Everything brand-specific is in the BRAND block directly below: the typefaces, the colour
  * tokens, and a handful of "personality" settings (button shape, how small labels are set, the
- * wordmark and the home headline). Change that block and every storefront page and the admin
+ * logo sizes and the home headline). Change that block and every storefront page and the admin
  * area follow. No component names a hex code, a typeface or a brand.
  *
  * Colour tokens are named by ROLE, not by colour, so a new palette never leaves a misleading
@@ -43,56 +43,57 @@
 @source "../";
 
 /* ======================================================================== BRAND: colours, type */
+/* Ayura, "Turmeric" (chosen by the owner, 11 Oct 2026). Ink is the green of the logo. */
 @theme {
-    --color-canvas: #edefe8;
-    --color-panel: #e2e6db;
-    --color-soft: #d5dccb;
-    --color-muted: #c7cfbc;
-    --color-ink: #1e3127;
-    --color-subtle: #55635a;
-    --color-accent: #9a5a17;
-    --color-line: rgb(30 49 39 / 0.16);
-    --color-line-strong: rgb(30 49 39 / 0.32);
-    --color-success: #3f6b46;
-    --color-danger: #a3402e;
+    --color-canvas: #f6f6f0;
+    --color-panel: #f2c14e;
+    --color-soft: #ebe7d3;
+    --color-muted: #e2dcc3;
+    --color-ink: #2b4732;
+    --color-subtle: #4f5848;
+    --color-accent: #2c6436;
+    --color-line: rgb(43 71 50 / 0.18);
+    --color-line-strong: rgb(43 71 50 / 0.4);
+    --color-success: #2c6436;
+    --color-danger: #a3352a;
 
-    --font-display: "Young Serif", Georgia, "Times New Roman", serif;
-    --font-body: "Karla", "Segoe UI", Arial, sans-serif;
+    --font-display: "Bricolage Grotesque Variable", "Segoe UI", Arial, sans-serif;
+    --font-body: "Bricolage Grotesque Variable", "Segoe UI", Arial, sans-serif;
 }
 
 /* ======================================================================== BRAND: personality */
 :root {
-    --brand-selection-bg: #e6cfa6;
-    --brand-selection-fg: #1e3127;
+    --brand-selection-bg: #f2c14e;
+    --brand-selection-fg: #2b4732;
 
     /* Buttons and other controls. */
-    --brand-control-radius: 999px;
-    --brand-button-size: 0.875rem;
-    --brand-button-weight: 700;
+    --brand-control-radius: 8px;
+    --brand-button-size: 0.9375rem;
+    --brand-button-weight: 650;
     --brand-button-case: none;
-    --brand-button-tracking: 0.01em;
+    --brand-button-tracking: 0;
 
     /* Small labels: section eyebrows, field labels, captions. */
     --brand-caption-size: 0.8125rem;
-    --brand-caption-weight: 700;
+    --brand-caption-weight: 650;
     --brand-caption-case: none;
-    --brand-caption-tracking: 0.01em;
+    --brand-caption-tracking: 0;
 
-    /* The wordmark in the header and footer (until a logo file replaces it). */
-    --brand-wordmark-font: var(--font-display);
-    --brand-wordmark-size: 1.85rem;
-    --brand-wordmark-weight: 400;
-    --brand-wordmark-case: none;
-    --brand-wordmark-tracking: -0.01em;
+    /* The logo files live in frontend/public/brand/ (see the README there). These are the
+       heights they are drawn at. The full logo has a pale gold drop: keep it on the light
+       canvas and soft colours, never on the panel yellow. */
+    --brand-logo-header-height: 1.5rem;
+    --brand-logo-header-height-wide: 1.75rem;
+    --brand-logo-footer-height: 6.5rem;
 
     /* Weight of every other heading set in the display face. */
-    --brand-display-weight: 400;
+    --brand-display-weight: 700;
 
     /* The home page headline. */
-    --brand-hero-size: clamp(2.5rem, 5.4vw, 5rem);
-    --brand-hero-weight: 400;
-    --brand-hero-leading: 1.04;
-    --brand-hero-tracking: -0.015em;
+    --brand-hero-size: clamp(2.6rem, 5.8vw, 5.4rem);
+    --brand-hero-weight: 800;
+    --brand-hero-leading: 0.95;
+    --brand-hero-tracking: -0.04em;
 }
 /* ======================================================================== end of BRAND */
 
@@ -264,14 +265,23 @@
         text-underline-offset: 4px;
     }
 
-    .ui-wordmark {
-        font-family: var(--brand-wordmark-font);
-        font-size: var(--brand-wordmark-size);
-        font-weight: var(--brand-wordmark-weight);
-        letter-spacing: var(--brand-wordmark-tracking);
-        text-transform: var(--brand-wordmark-case);
-        line-height: 1;
-        color: var(--color-ink);
+    /* The logo: an image, drawn at the heights set in the BRAND block. */
+    .ui-logo-header {
+        display: block;
+        height: var(--brand-logo-header-height);
+        width: auto;
+    }
+
+    @media (min-width: 768px) {
+        .ui-logo-header {
+            height: var(--brand-logo-header-height-wide);
+        }
+    }
+
+    .ui-logo-footer {
+        display: block;
+        height: var(--brand-logo-footer-height);
+        width: auto;
     }
 
     /* Headings in the display face. A weight utility on the element (font-bold) still wins. */

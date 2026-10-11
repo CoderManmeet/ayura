@@ -81,7 +81,19 @@ test('every page carries the store title, favicon and logo', async ({ page }) =>
         await page.goto(path);
         await expect(page).toHaveTitle(new RegExp(STORE_NAME));
         await expect(page.getByRole('link', { name: `${STORE_NAME} home` }).first()).toBeVisible();
-        await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+        await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute('href', '/favicon.svg');
+        await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveAttribute('href', '/favicon.png');
+    }
+    // The logo is the brand's image file, actually loaded (not a broken image), in header and footer.
+    await page.goto('/');
+    for (const src of ['/brand/logo-wordmark.png', '/brand/logo-full.png']) {
+        const logo = page.locator(`img[src="${src}"]`).first();
+        await expect(logo).toBeVisible();
+        await expect(logo).toHaveAttribute('alt', STORE_NAME);
+        await expect.poll(() => logo.evaluate((img) => img.complete && img.naturalWidth > 0)).toBe(true);
+    }
+    for (const icon of ['/favicon.svg', '/favicon.png', '/apple-touch-icon.png']) {
+        expect((await page.request.get(icon)).status(), icon).toBe(200);
     }
     // The browser colour comes from the theme file: it equals the page background token.
     const colours = await page.evaluate(() => ({

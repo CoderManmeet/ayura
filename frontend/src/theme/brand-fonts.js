@@ -4,7 +4,4 @@
 //
 // Imported from main.jsx before the theme. Kept out of brand.css on purpose: Tailwind inlines
 // CSS @imports but leaves the font files' relative addresses pointing at the wrong folder.
-import '@fontsource/young-serif/400.css';
-import '@fontsource/karla/400.css';
-import '@fontsource/karla/500.css';
-import '@fontsource/karla/700.css';
+import '@fontsource-variable/bricolage-grotesque/index.css';

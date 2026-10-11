@@ -10,10 +10,18 @@ import { STORE_NAME } from '../../utils/constants';
 
 // Storefront header. Shoppers see: Shop, About, search, their account and the
 // bag. Staff additionally see one "Admin" link; nobody else sees any link to the dashboard.
-export function Logo({ className = '' }) {
+// The logo is an image (frontend/public/brand/). `variant` picks the file: the word alone for
+// the header, the full logo (mark above the word) for the footer. Sizes come from the theme.
+const LOGO_FILES = {
+    header: { src: '/brand/logo-wordmark.png', className: 'ui-logo-header', width: 599, height: 117 },
+    footer: { src: '/brand/logo-full.png', className: 'ui-logo-footer', width: 615, height: 414 },
+};
+
+export function Logo({ className = '', variant = 'header' }) {
+    const file = LOGO_FILES[variant] || LOGO_FILES.header;
     return (
-        <Link to="/" aria-label={`${STORE_NAME} home`} className={`ui-wordmark ${className}`} data-testid="store-logo">
-            {STORE_NAME}
+        <Link to="/" aria-label={`${STORE_NAME} home`} className={`inline-block ${className}`} data-testid="store-logo">
+            <img src={file.src} alt={STORE_NAME} width={file.width} height={file.height} className={file.className} decoding="async" />
         </Link>
     );
 }

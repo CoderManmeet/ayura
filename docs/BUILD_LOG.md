@@ -29,11 +29,14 @@ the owner's answers (Y1-Y20), the defaults taken (Z1-Z9) and the legal questions
 | K11 | Django admin (/admin/) branding | Jazzmin titles read `STORE_NAME` (were the course author's "Desphixs" and "Modern Marketplace") | No marketplace wording anywhere | Low |
 | K12 | Shop name in `seed_e2e` | `settings.STORE_NAME` | No old brand in test data the browser shows | Low |
 | K13 | Noore docs | Moved, unchanged, to `docs/archive/ROADMAP-noore-v2.md` and `docs/archive/DEPLOY-FREE-noore.md`. `docs/DEPLOY.md` (paid server) renamed to Ayura paths and names | One roadmap and one free-deploy guide per repository | Low |
+| K15 | Palette | **Option 2, "Turmeric"**, chosen by the owner on 11 Oct 2026 from three screenshotted options: off-white canvas, turmeric-yellow panels, deep green ink, Bricolage Grotesque for everything. The ink was set to the logo's own green (`#2b4732`) | Owner's choice | Edit the BRAND block |
+| K16 | Logo | The owner's logo image (1024 px PNG on a cream background) was cut into transparent files in `frontend/public/brand/`: `logo-wordmark.png` (header), `logo-full.png` (footer), `logo-mark.png` (icons). A small four-point sparkle in the bottom-right corner, which looks like an image generator's watermark, was left out. Icons: `favicon.svg` (the mark embedded), `favicon.png`, `apple-touch-icon.png` | The header needs the word alone at small sizes; the stacked logo is unreadable at 24 px | Replace the files (same names) |
+| K17 | Logo on yellow | Never. The logo's gold drop disappears on the panel yellow; it is only placed on the canvas and soft colours (noted in the theme file and `public/brand/README.md`) | Seen in the preview | n/a |
 | K14 | `backups/` | Added to `.gitignore`. `backups/db-20261004-130927.sqlite3` is **still tracked** (it was committed in 435cbd8); it holds only the course demo data (one demo account, one demo order). Removing it from the repository is a removal proposal; purging it from history would be a history rewrite (CLAUDE.md section 5) and is not proposed | CLAUDE.md says backups are git-ignored; they were not | n/a |
 
 ---
 
-## PHASE A — Fork and rebrand (WAITING: palette choice and logo)
+## PHASE A — Fork and rebrand (COMPLETED)
 
 ### 1. PHASE COMPLETED
 
@@ -49,7 +52,7 @@ Done:
 - **Brand-neutral theme (K1-K4).** The whole look, including the browser colour, comes from one
   BRAND block in `src/theme/brand.css` plus the font imports in `src/theme/brand-fonts.js`.
 - **Three palette options built and screenshotted** (home, product, cart at 390 px and 1280 px).
-  Option 1 (Amber bottle) is in the files until the owner picks.
+  The owner chose option 2, Turmeric.
 - **Policy pages** gain labelled placeholder sections for personal care: opened products;
   damaged, leaking or wrong items; using the products; shelf life. `PLACEHOLDER_COPY` stays
   `true` and every page says so.
@@ -59,8 +62,10 @@ Done:
 - **Docs:** this section, the reconstructed section below, `CLAUDE.md` updated (approved),
   `docs/ROADMAP.md` is Ayura's plan.
 
-Waiting on the owner: the palette choice (then the two unchosen font packages are removed) and
-the logo file (then it replaces the text wordmark and the placeholder favicon).
+- **Palette: Turmeric** (K15), the owner's choice; the two unchosen palettes' font packages were
+  removed again.
+- **Logo** (K16, K17): header shows the wordmark, the footer the full logo; favicon and phone
+  home-screen icon are the leaf-and-drop mark.
 
 ### 2. FILES CREATED
 
@@ -68,6 +73,8 @@ the logo file (then it replaces the text wordmark and the placeholder favicon).
 - `backend/catalog/tests/test_seed_ayura.py`
 - `backend/static/.gitkeep`
 - `frontend/src/theme/brand-fonts.js`
+- `frontend/public/brand/logo-wordmark.png`, `logo-full.png`, `logo-mark.png`, `README.md`
+- `frontend/public/favicon.png`, `frontend/public/apple-touch-icon.png`
 - `docs/DEPLOY-AYURA.md`
 - `docs/ROADMAP.md` (Ayura's; the previous one is archived, see section 3)
 
@@ -92,6 +99,7 @@ None. No model, field or endpoint was added, renamed or removed.
 ### 5. ENV VARS ADDED
 
 Frontend (`frontend/.env.example`): `VITE_TAGLINE`, `VITE_STORE_DESCRIPTION` (both optional).
+New npm dependency: `@fontsource-variable/bricolage-grotesque` (the typeface, bundled).
 Changed defaults: `VITE_STORE_NAME` and backend `STORE_NAME` now default to `Ayura`;
 `VITE_WHATSAPP_NUMBER` example is the owner's number `917888548215`.
 
@@ -111,8 +119,10 @@ the fresh Ayura clone (`static/` missing) and passes with `backend/static/.gitke
 
 Playwright, `frontend/e2e/brand.spec.js` extended: the crawl now also forbids "noore" and
 "candle"; every title contains the store name; the browser colour equals the theme's canvas;
-the description has no unfilled placeholder; a new static check finds no leftover theme or
-brand names in `src/`. Shown failing first: the new `brand.spec.js` run against the untouched
+the description has no unfilled placeholder; the header and footer logo images load and carry
+the store name as their text alternative; the three icon files are served; a new static check
+finds no leftover theme or brand names in `src/`. The logo check was shown failing with the
+`public/brand/` folder taken away. Shown failing first: the new `brand.spec.js` run against the untouched
 Noore code gives **6 failed, 4 passed** (the 4 are the unchanged access-control checks).
 
     npx playwright test   ->  21 passed
@@ -154,7 +164,7 @@ Second terminal:
     npm run build
     npm run dev
 
-1. http://localhost:5173 : the tagline is the headline; the header says Ayura; six products in the row.
+1. http://localhost:5173 : the Ayura logo in the header and footer; the tagline is the headline; yellow collection band; six products in the row. The browser tab shows the leaf-and-drop icon.
 2. Open Face Serum: 30 ml Rs 449 (struck Rs 499, 10% off); 50 ml Rs 649 (7% off). No "Net weight" row.
 3. Footer: each policy page shows the placeholder notice and the new personal-care sections.
 4. Change `--color-canvas` in `frontend/src/theme/brand.css`: every page and the browser colour follow.
@@ -173,7 +183,8 @@ Second terminal:
 
 ### 9. KNOWN GAPS
 
-- **Palette not chosen, logo not supplied.** Option 1 is in the files; the favicon is a placeholder "A".
+- The logo is a raster image cut from a 1024 px PNG. It is sharp at the sizes used; a vector (SVG) original, if one exists, would be sharper on large screens and smaller to download.
+- If the logo was made with an AI image tool, whether it can be registered as a trademark is a question for the professional alongside L5.
 - Some inline styles still set uppercase letter-spacing (stock status, size buttons, a few admin labels). They are outside the `.ui-caption` pattern and change in the screens phase B rewrites.
 - The admin area keeps square corners and uppercase labels from `admin.css`: it follows the palette and typefaces, not the storefront's button shape.
 - Support email is the placeholder `support@example.com` until `VITE_SUPPORT_EMAIL` is set.

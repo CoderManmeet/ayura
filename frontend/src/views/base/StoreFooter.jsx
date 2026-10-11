@@ -13,7 +13,7 @@ function StoreFooter() {
             <footer className="mt-20 bg-soft px-5 py-12 text-ink md:px-10">
                 <div className="mx-auto grid max-w-[1440px] gap-10 md:grid-cols-4">
                     <div>
-                        <Logo />
+                        <Logo variant="footer" />
                         <p className="mt-4 max-w-xs text-xs leading-6 text-subtle">{TAGLINE}</p>
                     </div>
                     <div>

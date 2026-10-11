@@ -38,7 +38,8 @@ product is sold as a cosmetic.
 | Y17 | Hosting on free tiers; the frontend lives on a `*.vercel.app` address for now |
 | Y18 | Test variable names containing "candle" stay. Only strings a shopper can see, and seed slugs, change |
 | Y19 | Gift samples are a surprise: the customer is **never** told about them on the order page, in emails or anywhere else (owner, 11 Oct 2026). They show only in the admin area |
-| Y20 | Brand assets: tagline "If we wouldn’t use it at home, we don’t bottle it."; WhatsApp 7888548215 (`917888548215` for wa.me); support email stays a placeholder for now; logo to follow |
+| Y20 | Brand assets: tagline "If we wouldn’t use it at home, we don’t bottle it."; WhatsApp 7888548215 (`917888548215` for wa.me); support email stays a placeholder for now; logo supplied 11 Oct 2026 (leaf and gold drop above the word AYURA) |
+| Y21 | Palette: option 2, "Turmeric" (off-white, turmeric yellow, deep green, Bricolage Grotesque) |
 
 ## Defaults taken on the owner's behalf (cheap to reverse)
 
