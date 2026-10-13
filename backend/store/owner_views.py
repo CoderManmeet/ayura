@@ -33,7 +33,7 @@ from store.order_state import (
     mark_paid,
     set_payment_status,
 )
-from store.serializers import CartOrderSerializer, ReviewSerializer
+from store.serializers import OwnerCartOrderSerializer, ReviewSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ PLACED = ("paid", "pending", "refunding", "refunded", "cancelled")
 
 
 class OwnerOrderListView(generics.ListAPIView):
-    serializer_class = CartOrderSerializer
+    serializer_class = OwnerCartOrderSerializer
     permission_classes = (IsStaffOwner,)
 
     def get_queryset(self):
@@ -54,7 +54,7 @@ class OwnerOrderListView(generics.ListAPIView):
 
 
 class OwnerOrderDetailView(generics.RetrieveAPIView):
-    serializer_class = CartOrderSerializer
+    serializer_class = OwnerCartOrderSerializer
     permission_classes = (IsStaffOwner,)
 
     def get_object(self):
@@ -109,7 +109,7 @@ class OwnerOrderActionView(APIView):
             return self._error(str(exc))
 
         order = CartOrder.objects.get(pk=order.pk)
-        return Response(CartOrderSerializer(order, context={"request": request}).data)
+        return Response(OwnerCartOrderSerializer(order, context={"request": request}).data)
 
     def _set_delivery(self, request, order, actor, reason):
         target = str(request.data.get("status") or "")

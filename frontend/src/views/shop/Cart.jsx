@@ -182,6 +182,12 @@ function Cart() {
     const threshold = quote?.free_shipping_threshold_paise || 0;
     const afterDiscount = (quote?.subtotal_paise || 0) - (quote?.discount_paise || 0);
     const progress = threshold > 0 ? Math.min(100, Math.round((afterDiscount * 100) / threshold)) : 100;
+    // The owner can switch shipping off (every order ships free) or switch free shipping off
+    // (every order pays the flat charge). The nudge towards free shipping only shows when there
+    // is free shipping to reach.
+    const shippingOn = quote?.shipping_enabled !== false;
+    const freeShippingOn = shippingOn && quote?.free_shipping_enabled !== false;
+    const codFee = quote?.cod_available ? (quote?.cod_fee_if_cod_paise || 0) : 0;
 
     return (
         <main>
@@ -250,7 +256,7 @@ function Cart() {
                                 {couponMessage && <p className="mt-3 text-xs text-accent" data-testid="coupon-message">{couponMessage}</p>}
                             </div>
 
-                            {quote &&
+                            {quote && freeShippingOn &&
                                 <>
                                     <p className="mt-6 text-xs text-subtle" data-testid="free-shipping-line">
                                         {quote.amount_to_free_shipping_paise > 0
@@ -260,6 +266,11 @@ function Cart() {
                                     </p>
                                     <div className="mt-3 h-1 bg-soft" aria-hidden="true"><div className="h-full bg-accent" style={{ width: `${progress}%` }} /></div>
                                 </>
+                            }
+                            {quote && !freeShippingOn &&
+                                <p className="mt-6 text-xs text-subtle" data-testid="free-shipping-line">
+                                    {shippingOn ? <>Shipping {formatINR(quote.shipping_flat_paise)} on every order.</> : <>Shipping is free on every order.</>}
+                                </p>
                             }
 
                             <h2 className="mt-14 font-display text-3xl">Delivery details</h2>
@@ -286,6 +297,9 @@ function Cart() {
                                 <div className="flex justify-between"><span>Shipping</span><span data-testid="summary-shipping">{quote?.free_shipping ? 'Free' : formatINR(quote?.shipping_paise ?? 0)}</span></div>
                                 <div className="mt-3 flex justify-between border-t border-line pt-4 font-display text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(quote?.total_paise ?? 0)}</span></div>
                                 <p className="text-xs text-subtle">Inclusive of all taxes</p>
+                                {codFee > 0 &&
+                                    <p className="text-xs text-subtle" data-testid="cart-cod-fee-note">Paying by Cash on Delivery adds a {formatINR(codFee)} fee. Paying online adds nothing.</p>
+                                }
                             </div>
                             <button onClick={createCartOrder} disabled={placingOrder} className="ui-btn mt-8 w-full">
                                 {placingOrder ? 'Please wait...' : 'Go to checkout'}

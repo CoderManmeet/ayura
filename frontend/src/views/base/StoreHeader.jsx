@@ -5,7 +5,7 @@ import { Menu, Search, ShoppingBag, User, X } from 'lucide-react';
 import { useAuthStore } from '../../store/auth';
 import { CartContext } from '../plugin/Context';
 import Addon from '../plugin/Addon';
-import { formatINR } from '../../utils/money';
+import { announcementText } from '../../utils/shippingText';
 import { STORE_NAME } from '../../utils/constants';
 
 // Storefront header. Shoppers see: Shop, About, search, their account and the
@@ -52,12 +52,14 @@ function StoreHeader() {
 
     const signedIn = isLoggedIn();
     const isStaff = signedIn && user().is_staff;
+    // Follows the owner's shipping switches; hidden when there is no free shipping to announce.
+    const announcement = announcementText(addon);
 
     return (
         <div className="ui-chrome font-body">
-            {addon?.free_shipping_threshold_paise != null &&
+            {announcement &&
                 <div className="bg-ink px-4 py-2.5 text-center ui-caption text-canvas" data-testid="announcement">
-                    Free shipping on orders of {formatINR(addon.free_shipping_threshold_paise)} or more
+                    {announcement}
                 </div>
             }
             <header className="relative border-b border-line bg-canvas">

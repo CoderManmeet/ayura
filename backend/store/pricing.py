@@ -16,10 +16,14 @@ Rules (docs/ROADMAP.md, phase G1; decisions P1-P8, A3, A4):
     proportion to their subtotal (largest remainder), so line totals always sum to
     subtotal - discount to the paisa.
   * Shipping is one flat charge per order, free when subtotal - discount reaches the
-    threshold (>=). An empty cart has no shipping.
+    threshold (>=). An empty cart has no shipping. The owner can switch shipping off (every
+    order ships free) or switch free shipping off (every order pays the flat charge) (Phase C).
   * Prices are tax-inclusive. Tax is carved OUT of the amount (amount x rate / (10000 + rate),
     rate in basis points), never added on top. With tax_rate_bps = 0 the tax is 0.
-  * total = subtotal - discount + shipping. No service fee. No COD fee.
+  * Cash on Delivery fee (Phase C, ROADMAP Z5): added only when the quote is for payment method
+    COD and the owner has switched the fee on. Coupons never discount it, and it does not count
+    towards the free-shipping threshold. An online payment is always priced without it.
+  * total = subtotal - discount + shipping + COD fee. No service fee.
   * An invalid coupon never raises: the quote comes back without a discount, with
     `coupon_error` (a stable code) and `coupon_message` (text the UI can show).
 """
@@ -39,6 +43,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_SHIPPING_FLAT_PAISE = 7900
 DEFAULT_FREE_SHIPPING_THRESHOLD_PAISE = 99900
 DEFAULT_TAX_RATE_BPS = 0
+DEFAULT_COD_FEE_PAISE = 0
+
+# The payment method that may carry a fee. Every other method is priced the same way.
+PAYMENT_METHOD_COD = "COD"
 
 # An order in one of these states no longer holds its coupon use.
 DEAD_ORDER_STATUS = "Cancelled"
@@ -77,6 +85,18 @@ class PricingConfig:
     shipping_flat_paise: int = DEFAULT_SHIPPING_FLAT_PAISE
     free_shipping_threshold_paise: int = DEFAULT_FREE_SHIPPING_THRESHOLD_PAISE
     tax_rate_bps: int = DEFAULT_TAX_RATE_BPS
+    shipping_enabled: bool = True
+    free_shipping_enabled: bool = True
+    cod_enabled: bool = True
+    cod_fee_enabled: bool = False
+    cod_fee_paise: int = DEFAULT_COD_FEE_PAISE
+
+    @property
+    def cod_fee_if_cod_paise(self):
+        """The fee a Cash on Delivery order would pay right now (0 when COD or the fee is off)."""
+        if self.cod_enabled and self.cod_fee_enabled:
+            return max(int(self.cod_fee_paise), 0)
+        return 0
 
 
 @dataclass(frozen=True)
@@ -96,8 +116,10 @@ class Quote:
     subtotal_paise: int = 0
     discount_paise: int = 0
     shipping_paise: int = 0
+    cod_fee_paise: int = 0
     tax_paise: int = 0
     total_paise: int = 0
+    payment_method: str = ""
     coupon: object = None
     coupon_code: str = ""
     coupon_error: str = ""
@@ -106,6 +128,10 @@ class Quote:
     free_shipping_threshold_paise: int = DEFAULT_FREE_SHIPPING_THRESHOLD_PAISE
     amount_to_free_shipping_paise: int = 0
     tax_rate_bps: int = DEFAULT_TAX_RATE_BPS
+    shipping_enabled: bool = True
+    free_shipping_enabled: bool = True
+    cod_available: bool = True
+    cod_fee_if_cod_paise: int = 0
 
     @property
     def free_shipping(self):
@@ -117,8 +143,10 @@ class Quote:
             "subtotal_paise": self.subtotal_paise,
             "discount_paise": self.discount_paise,
             "shipping_paise": self.shipping_paise,
+            "cod_fee_paise": self.cod_fee_paise,
             "tax_paise": self.tax_paise,
             "total_paise": self.total_paise,
+            "payment_method": self.payment_method,
             "coupon_code": self.coupon_code,
             "coupon_error": self.coupon_error,
             "coupon_message": self.coupon_message,
@@ -126,6 +154,10 @@ class Quote:
             "shipping_flat_paise": self.shipping_flat_paise,
             "free_shipping_threshold_paise": self.free_shipping_threshold_paise,
             "amount_to_free_shipping_paise": self.amount_to_free_shipping_paise,
+            "shipping_enabled": self.shipping_enabled,
+            "free_shipping_enabled": self.free_shipping_enabled,
+            "cod_available": self.cod_available,
+            "cod_fee_if_cod_paise": self.cod_fee_if_cod_paise,
             "tax_rate_bps": self.tax_rate_bps,
             "tax_inclusive": True,
             "currency": "INR",
@@ -151,7 +183,7 @@ def normalise_email(value):
 
 
 def get_pricing_config():
-    """Shipping and tax settings from ConfigSettings (roadmap defaults when no row exists)."""
+    """Shipping, COD and tax settings from ConfigSettings (roadmap defaults when no row exists)."""
     from addon.models import ConfigSettings
 
     row = ConfigSettings.objects.first()
@@ -161,7 +193,17 @@ def get_pricing_config():
         shipping_flat_paise=int(row.shipping_flat_paise),
         free_shipping_threshold_paise=int(row.free_shipping_threshold_paise),
         tax_rate_bps=int(row.tax_rate_bps),
+        shipping_enabled=bool(row.shipping_enabled),
+        free_shipping_enabled=bool(row.free_shipping_enabled),
+        cod_enabled=bool(row.cod_enabled),
+        cod_fee_enabled=bool(row.cod_fee_enabled),
+        cod_fee_paise=int(row.cod_fee_paise),
     )
+
+
+def normalise_payment_method(value):
+    """'cod', 'COD ' -> 'COD'; anything else upper-cased; blank stays blank."""
+    return str(value or "").strip().upper()
 
 
 def carve_out_tax(inclusive_paise, rate_bps):
@@ -305,7 +347,8 @@ def _normalise_lines(lines):
 
 # --------------------------------------------------------------------------- the function
 
-def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupon=False, config=None, now=None):
+def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupon=False, config=None, now=None,
+          payment_method=None):
     """
     Price a set of lines.
 
@@ -316,8 +359,11 @@ def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupo
                   (used when an existing order is re-quoted)
     lock_coupon   lock the coupon row (SELECT ... FOR UPDATE); the caller must then be inside
                   transaction.atomic() and write the redemption in that same transaction
+    payment_method "COD" adds the Cash on Delivery fee when the owner has it switched on;
+                  anything else (or nothing) is priced without it
     """
     config = config or get_pricing_config()
+    method = normalise_payment_method(payment_method)
     items = _normalise_lines(lines)
 
     line_subtotals = [unit_price * qty for _variant, qty, unit_price in items]
@@ -337,14 +383,15 @@ def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupo
 
     discounts = split_discount(discount, line_subtotals)
 
-    if not items:
-        shipping = 0
-    elif subtotal - discount >= config.free_shipping_threshold_paise:
+    qualifies_for_free = config.free_shipping_enabled and subtotal - discount >= config.free_shipping_threshold_paise
+    if not items or not config.shipping_enabled or qualifies_for_free:
         shipping = 0
     else:
         shipping = config.shipping_flat_paise
 
-    total = subtotal - discount + shipping
+    cod_fee = config.cod_fee_if_cod_paise if (items and method == PAYMENT_METHOD_COD) else 0
+
+    total = subtotal - discount + shipping + cod_fee
     tax = carve_out_tax(total, config.tax_rate_bps)
 
     quote_lines = []
@@ -362,7 +409,7 @@ def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupo
             )
         )
 
-    if not items or shipping == 0:
+    if not items or shipping == 0 or not config.free_shipping_enabled:
         to_free = 0
     else:
         to_free = max(config.free_shipping_threshold_paise - (subtotal - discount), 0)
@@ -372,8 +419,10 @@ def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupo
         subtotal_paise=subtotal,
         discount_paise=discount,
         shipping_paise=shipping,
+        cod_fee_paise=cod_fee,
         tax_paise=tax,
         total_paise=total,
+        payment_method=method,
         coupon=coupon,
         coupon_code=coupon.code if coupon is not None else "",
         coupon_error=error,
@@ -382,7 +431,43 @@ def quote(lines, coupon_code=None, customer=None, exclude_order=None, lock_coupo
         free_shipping_threshold_paise=config.free_shipping_threshold_paise,
         amount_to_free_shipping_paise=to_free,
         tax_rate_bps=config.tax_rate_bps,
+        shipping_enabled=config.shipping_enabled,
+        free_shipping_enabled=config.free_shipping_enabled,
+        cod_available=config.cod_enabled,
+        cod_fee_if_cod_paise=config.cod_fee_if_cod_paise,
     )
+
+
+def order_lines(order):
+    """
+    An existing order's lines as quote() input, at the unit prices the order already stores (so
+    re-quoting never picks up a catalogue price change). Returns (order_items, lines).
+    Raises PricingError when a line can no longer be priced.
+    """
+    from store.models import CartOrderItem
+
+    order_items = list(CartOrderItem.objects.filter(order=order).select_related("product", "variant").order_by("id"))
+    lines = []
+    for item in order_items:
+        variant = item.variant
+        if variant is None or item.qty < 1:
+            raise PricingError("This order has a line that can no longer be priced.")
+        lines.append((variant, int(item.qty), int(item.price_paise)))
+    if not lines:
+        raise PricingError("This order has no lines.")
+    return order_items, lines
+
+
+def quote_order(order, payment_method=None, lock_coupon=False):
+    """
+    Re-price an existing order draft for a payment method, keeping its coupon and its stored
+    unit prices. Returns (order_items, quote, customer). Nothing is saved.
+    """
+    order_items, lines = order_lines(order)
+    customer = Customer.build(user=order.buyer, email=order.email, phone=order.phone_e164 or order.mobile)
+    priced = quote(lines, coupon_code=order.coupon_code, customer=customer, exclude_order=order,
+                   lock_coupon=lock_coupon and bool(order.coupon_code), payment_method=payment_method)
+    return order_items, priced, customer
 
 
 # --------------------------------------------------------------------------- persistence
@@ -415,8 +500,9 @@ def apply_quote_to_order(order, order_items, priced):
     set_money(order, "shipping_amount", priced.shipping_paise)
     set_money(order, "service_fee", 0)
     set_money(order, "tax_fee", priced.tax_paise)
-    set_money(order, "initial_total", priced.subtotal_paise + priced.shipping_paise)
+    set_money(order, "initial_total", priced.subtotal_paise + priced.shipping_paise + priced.cod_fee_paise)
     set_money(order, "total", priced.total_paise)
+    order.cod_fee_paise = priced.cod_fee_paise
     order.coupon_code = priced.coupon_code
     order.save()
     return order

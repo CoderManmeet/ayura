@@ -49,6 +49,48 @@ def api():
     return APIClient()
 
 
+@pytest.fixture(scope="session")
+def shipped_setting():
+    """
+    shipped_setting("NAME") -> what a FRESH INSTALL has for that setting, as text.
+
+    Read in a clean interpreter with NO .env file loaded: `DJANGO_ENV_FILE` is pointed at a path
+    that does not exist, so `backend/settings.py` loads nothing and every value falls back to
+    the default written in the code.
+
+    That indirection is what makes this possible at all. `env.read_env()` searches upward from
+    settings.py's OWN directory, not the working directory, so `backend/.env` is always found
+    however the subprocess is launched — and a changed shipped default could hide behind a local
+    value forever. (It did: the owner's .env still carried the Phase C
+    MIN_SHELF_LIFE_ON_DISPATCH_DAYS=30 and the test meant to catch that was reading it too.)
+
+    `extra_env` sets variables for the subprocess; the setting's own variable is removed from
+    the environment first, so passing it back through `extra_env` is how the override itself is
+    tested. DJANGO_SECRET_KEY is supplied because settings.py requires it and the .env that
+    normally provides it is deliberately not loaded.
+    """
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    backend_dir = Path(__file__).resolve().parent
+
+    def _read(name, extra_env=None):
+        env = {key: value for key, value in os.environ.items() if key != name}
+        env.update(extra_env or {})
+        env["DJANGO_SETTINGS_MODULE"] = "backend.settings"
+        env["DJANGO_ENV_FILE"] = str(backend_dir / "no-such-env-file.env")
+        env["DJANGO_SECRET_KEY"] = "test-only-never-a-real-secret"
+        script = ("import django; django.setup(); from django.conf import settings; "
+                  f"print(settings.{name})")
+        result = subprocess.run([sys.executable, "-c", script], cwd=backend_dir, env=env,
+                                capture_output=True, text=True, timeout=120, check=True)
+        return result.stdout.strip().splitlines()[-1]
+
+    return _read
+
+
 @pytest.fixture
 def make_user(db):
     from userauths.models import User

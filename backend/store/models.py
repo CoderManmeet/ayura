@@ -157,6 +157,16 @@ PAYMENT_METHOD = (
 
 
 
+# Whether the owner has decided about gift samples for an order (Phase D, Ayura).
+SAMPLE_UNDECIDED = "UNDECIDED"
+SAMPLE_NONE = "NONE"
+SAMPLE_ADDED = "ADDED"
+SAMPLE_DECISION_CHOICES = (
+    (SAMPLE_UNDECIDED, "Not decided yet"),
+    (SAMPLE_NONE, "No samples"),
+    (SAMPLE_ADDED, "Samples added"),
+)
+
 REVIEW_PENDING = "PENDING"
 REVIEW_APPROVED = "APPROVED"
 REVIEW_REJECTED = "REJECTED"
@@ -564,8 +574,8 @@ class CartOrder(MoneyMirrorMixin, models.Model):
     #   shipping_amount  flat shipping, 0 when free
     #   tax_fee          tax carved out of the tax-inclusive total (0 while tax_rate_bps is 0)
     #   service_fee      always 0 from G1 on (the marketplace fee is no longer charged)
-    #   initial_total    sub_total + shipping_amount, i.e. the total before the discount
-    #   total            sub_total - saved + shipping_amount: what the customer pays
+    #   initial_total    sub_total + shipping_amount + cod_fee_paise, i.e. the total before the discount
+    #   total            sub_total - saved + shipping_amount + cod_fee_paise: what the customer pays
     MONEY_FIELDS = ("sub_total", "shipping_amount", "tax_fee", "service_fee", "total", "initial_total", "saved")
 
     # Vendors associated with the order
@@ -602,6 +612,13 @@ class CartOrder(MoneyMirrorMixin, models.Model):
     saved_paise = models.BigIntegerField(default=0)
     # Code of the coupon currently applied to this order (snapshot text; blank when none).
     coupon_code = models.CharField(max_length=1000, blank=True, default="")
+    # Has the owner decided about gift samples for this order (Phase D, Ayura)? Owner-facing
+    # only: it is never shown to the customer, in any page or email (ROADMAP Y19).
+    sample_decision = models.CharField(max_length=10, choices=SAMPLE_DECISION_CHOICES, default=SAMPLE_UNDECIDED)
+    # Cash on Delivery fee charged on this order, in paise (Phase C, Ayura). 0 for every order not
+    # placed as COD, and for COD orders while the owner's fee is switched off. Paise only: no
+    # legacy Decimal twin. Part of `total_paise`; written only by store.pricing.apply_quote_to_order.
+    cod_fee_paise = models.BigIntegerField(default=0)
     
     # Personal Informations
     full_name = models.CharField(max_length=1000)
@@ -740,6 +757,33 @@ class CartOrderItem(MoneyMirrorMixin, models.Model):
     # Method to return a string representation of the object
     def __str__(self):
         return self.oid
+
+class OrderSample(models.Model):
+    """
+    A free sample the owner is sending with an order (Phase D, Ayura).
+
+    Samples are never charged for: `store.pricing.quote()` never sees them, so adding or
+    removing one cannot change what the customer pays. Their stock is held when the sample is
+    added and leaves the ledger as SAMPLE_OUT when the order is dispatched, exactly once.
+    The customer is never told (ROADMAP Y19): no order page and no email mentions samples.
+    """
+
+    order = models.ForeignKey(CartOrder, on_delete=models.CASCADE, related_name="samples")
+    variant = models.ForeignKey("catalog.ProductVariant", on_delete=models.PROTECT, related_name="sample_gifts")
+    qty = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    added_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name_plural = "Order samples"
+        constraints = [
+            models.UniqueConstraint(fields=["order", "variant"], name="store_ordersample_order_variant_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.qty} x {self.variant.sku} with {self.order.oid}"
+
 
 # Define a model for Reviews
 class Review(models.Model):

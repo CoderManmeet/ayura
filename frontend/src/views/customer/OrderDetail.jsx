@@ -11,6 +11,7 @@ import { SIZES } from '../../utils/image';
 import NotFound from '../base/NotFound';
 import BuyAgainButton from './BuyAgainButton';
 import { orderStatusLabel } from './Orders';
+import { STATUS_LABEL as SUPPORT_STATUS, queriesForOrder } from '../support/supportApi';
 
 // One past order: where it has got to, what was in it, what was paid and how.
 const STEPS = ['Placed', 'Being packed', 'On its way', 'Delivered'];
@@ -19,6 +20,9 @@ const STEP_OF = { 'On Hold': 0, 'Shipping Processing': 1, 'Shipped': 2, 'Arrived
 function OrderDetail() {
     const [order, setOrder] = useState(null)
     const [missing, setMissing] = useState(false)
+    // Support threads already opened about this order (phase F). A failure here is not a
+    // failure of the order page: the list stays empty and "Report a problem" still works.
+    const [queries, setQueries] = useState([])
     const userData = UserData()
     const param = useParams()
     usePageTitle(order ? `Order ${order.oid}` : 'Order');
@@ -27,6 +31,7 @@ function OrderDetail() {
         apiInstance.get(`customer/order/detail/${userData?.user_id}/${param?.order_oid}/`).then((res) => {
             setOrder(res.data);
         }).catch(() => setMissing(true))
+        queriesForOrder(param?.order_oid).then((data) => setQueries(data.queries)).catch(() => setQueries([]))
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [param?.order_oid])
 
@@ -100,6 +105,9 @@ function OrderDetail() {
                                 <div className="flex justify-between text-accent"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span>-{formatINR(order.saved_paise)}</span></div>
                             }
                             <div className="flex justify-between"><span>Shipping</span><span>{order.shipping_amount_paise > 0 ? formatINR(order.shipping_amount_paise) : 'Free'}</span></div>
+                            {order.cod_fee_paise > 0 &&
+                                <div className="flex justify-between" data-testid="order-cod-fee"><span>Cash on Delivery fee</span><span>{formatINR(order.cod_fee_paise)}</span></div>
+                            }
                             {order.service_fee_paise > 0 &&
                                 <div className="flex justify-between"><span>Service fee</span><span>{formatINR(order.service_fee_paise)}</span></div>
                             }
@@ -110,6 +118,32 @@ function OrderDetail() {
                         <div className="mt-8 flex flex-wrap items-center gap-5">
                             <BuyAgainButton orderOid={order.oid} className="ui-btn" />
                             <Link to="/customer/orders/" className="ui-link ui-caption">All orders</Link>
+                        </div>
+
+                        {/* Phase F: reporting a problem with this order, and the threads already
+                            opened about it, so a second identical report is not invited. */}
+                        <div className="mt-8 border-t border-line pt-6">
+                            {queries.length > 0 &&
+                                <ul className="mb-4 flex flex-col gap-2 p-0" data-testid="order-support-threads">
+                                    {queries.map((query) => (
+                                        <li key={query.ref} className="text-sm">
+                                            <Link to={`/support/thread/${query.ref}`} className="ui-link">{query.subject}</Link>
+                                            <span className="ml-2 text-xs text-subtle">
+                                                {SUPPORT_STATUS[query.status] || query.status}
+                                            </span>
+                                            {query.has_new_reply &&
+                                                <span className="ml-2 bg-accent px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-white">
+                                                    New reply
+                                                </span>
+                                            }
+                                        </li>
+                                    ))}
+                                </ul>
+                            }
+                            <Link to={`/support/new?order=${order.oid}`} className="ui-link ui-caption"
+                                data-testid="order-report-problem">
+                                {queries.length > 0 ? 'Report something else' : 'Report a problem with this order'}
+                            </Link>
                         </div>
                     </section>
                 </div>

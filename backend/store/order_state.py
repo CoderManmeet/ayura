@@ -19,7 +19,7 @@ from django.db import transaction
 
 from core.audit import record
 from inventory.models import Channel
-from inventory.services import consume_for_order, hold_for_order, release_for_order
+from inventory.services import consume_for_order, consume_samples_for_order, hold_for_order, release_for_order
 
 logger = logging.getLogger(__name__)
 
@@ -187,6 +187,8 @@ def set_delivery_status(order_item, target, reason="", actor=None, channel=Chann
 
     if entering_dispatch:
         consume_for_order(order, channel=channel, reason=f"dispatch: {target}")
+        # Free samples leave with the parcel, as SAMPLE_OUT, exactly once (Phase D, Ayura).
+        consume_samples_for_order(order, channel=channel, reason=f"samples dispatched: {target}")
 
     record("order_item.delivery_status", order_item, before={"delivery_status": current},
            after={"delivery_status": target}, reason=reason, actor=actor)

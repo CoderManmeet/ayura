@@ -9,9 +9,9 @@
 // false once the real text is in.
 // ============================================================================
 //
-// The shipping figures are NOT placeholders: the pages read the live shipping charge and
-// free-shipping threshold from the server's settings, so they can never disagree with what
-// checkout charges.
+// The shipping figures are NOT placeholders: the pages read the live shipping charge,
+// free-shipping threshold and Cash on Delivery fee from the server's settings, so they can never
+// disagree with what checkout charges.
 
 export const PLACEHOLDER_COPY = true;
 
@@ -22,8 +22,8 @@ export const POLICY_LINKS = [
     { path: '/policy/terms', title: 'Terms and Conditions' },
 ];
 
-// Each section is { heading, paragraphs }. The tokens {shipping}, {threshold}, {email} and
-// {store} are filled in by PolicyPage.
+// Each section is { heading, paragraphs }. The tokens {shipping}, {threshold}, {shipping_terms},
+// {cod_terms}, {email} and {store} are filled in by PolicyPage.
 export const POLICIES = {
     shipping: {
         title: 'Shipping Policy',
@@ -31,7 +31,13 @@ export const POLICIES = {
             {
                 heading: 'Shipping charges',
                 paragraphs: [
-                    'Shipping is {shipping} per order. Orders of {threshold} or more (after any discount) ship free. The shipping charge for your order is always shown in the cart and at checkout before you pay.',
+                    '{shipping_terms} The shipping charge for your order is always shown in the cart and at checkout before you pay.',
+                ],
+            },
+            {
+                heading: 'Cash on Delivery',
+                paragraphs: [
+                    '{cod_terms}',
                 ],
             },
             {

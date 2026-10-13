@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 import Addon from '../plugin/Addon';
-import { formatINR } from '../../utils/money';
+import { paymentTile, shippingTile } from '../../utils/shippingText';
 import { STORE_NAME, TAGLINE } from '../../utils/constants';
 import { Photo, ProductCard, ProductRail, RailSkeleton, WakingNotice } from '../ui/kit';
 import { SIZES } from '../../utils/image';
@@ -24,6 +24,9 @@ function Home() {
     const featured = (products || []).filter((product) => product.featured)
     const hero = featured[0] || (products || [])[0]
     const collection = (featured.length > 0 ? featured : (products || [])).slice(0, 8)
+    // Both tiles follow the owner's shipping and Cash on Delivery settings (Phase C).
+    const shipping = shippingTile(addon)
+    const paying = paymentTile(addon)
 
     return (
         <main>
@@ -85,16 +88,16 @@ function Home() {
                 </div>
             </section>
 
-            {addon?.shipping_flat_paise != null &&
-                <section className="bg-ink px-5 py-14 text-canvas md:px-10">
+            {shipping &&
+                <section className="bg-ink px-5 py-14 text-canvas md:px-10" data-testid="store-facts">
                     <div className="mx-auto grid max-w-[1440px] gap-8 text-center md:grid-cols-3">
                         <div>
-                            <p className="font-display text-2xl">Shipping {formatINR(addon.shipping_flat_paise)}</p>
-                            <p className="mt-2 text-xs text-canvas/70">Free on orders of {formatINR(addon.free_shipping_threshold_paise)} or more</p>
+                            <p className="font-display text-2xl">{shipping.title}</p>
+                            <p className="mt-2 text-xs text-canvas/70">{shipping.detail}</p>
                         </div>
                         <div>
-                            <p className="font-display text-2xl">UPI, cards or cash</p>
-                            <p className="mt-2 text-xs text-canvas/70">Pay online or on delivery, at the same price</p>
+                            <p className="font-display text-2xl">{paying.title}</p>
+                            <p className="mt-2 text-xs text-canvas/70" data-testid="payment-fact">{paying.detail}</p>
                         </div>
                         <div>
                             <p className="font-display text-2xl">Prices include all taxes</p>

@@ -1,16 +1,33 @@
 from django.contrib import admin
 
-from catalog.models import PriceHistory, ProductVariant
+from catalog.models import KitComponent, PriceHistory, ProductVariant
 from inventory.services import available_qty, on_hand_qty
+
+
+class KitComponentInline(admin.TabularInline):
+    """What goes inside a kit (Phase E). Shown on the kit's own variant page.
+
+    The owner's normal screen for this is Admin area -> Kits; this inline is the fallback.
+    A kit never contains another kit or a sample (ROADMAP Z7); the model's constraints and
+    `store/owner_kits.py` enforce that, so pick components with care from here.
+    """
+
+    model = KitComponent
+    fk_name = "kit_variant"
+    extra = 1
+    autocomplete_fields = ["component_variant"]
+    fields = ["component_variant", "qty"]
 
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
     list_display = ["sku", "product", "name", "options", "net_quantity", "net_quantity_unit", "price_rupees",
-                    "mrp_rupees", "perishable", "is_default", "active", "on_hand", "available"]
-    list_filter = ["active", "is_default", "perishable"]
+                    "mrp_rupees", "perishable", "is_kit", "is_sample", "is_default", "active", "on_hand",
+                    "available"]
+    list_filter = ["active", "is_default", "perishable", "is_kit", "is_sample"]
     search_fields = ["sku", "name", "product__title"]
     autocomplete_fields = ["product"]
+    inlines = [KitComponentInline]
 
     @admin.display(description="Price")
     def price_rupees(self, obj):

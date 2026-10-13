@@ -13,6 +13,7 @@ import { addToWishlist } from '../plugin/addToWishlist';
 import { CartContext } from '../plugin/Context';
 import { Heart } from 'lucide-react';
 import { formatINR } from '../../utils/money';
+import { shippingLine } from '../../utils/shippingText';
 import { Loading, Photo } from '../ui/kit';
 import { SIZES } from '../../utils/image';
 import usePageTitle from '../../utils/usePageTitle';
@@ -62,6 +63,26 @@ const categoryChain = (categoryId, categories) => {
     }
     return chain;
 };
+
+// What is inside a kit (Phase E). The kit is sold as one item at one price, so the parts are
+// listed by name and size only — never with prices of their own, which would read as a bill of
+// materials and invite arithmetic the kit's price does not follow.
+function KitContents({ variant }) {
+    if (!variant?.is_kit || !(variant.kit_contents || []).length) return null;
+    return (
+        <section className="mt-8 bg-panel p-6" data-testid="kit-contents">
+            <h2 className="ui-label mb-3">What's inside</h2>
+            <ul className="flex flex-col gap-2 text-sm">
+                {variant.kit_contents.map((part, index) => (
+                    <li key={index} className="flex justify-between gap-6 border-b border-line pb-2 last:border-0 last:pb-0">
+                        <span>{part.qty > 1 && <span className="text-subtle">{part.qty} × </span>}{part.product} {part.variant}</span>
+                        {part.net_quantity && <span className="text-subtle">{part.net_quantity}</span>}
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+}
 
 // Owner-typed care text, shown only when there is some.
 function CareSection({ title, text, testId }) {
@@ -282,6 +303,9 @@ function ProductDetail() {
                         {product.benefit_line && <p className="mt-7 font-display text-xl" data-testid="product-benefit-line">{product.benefit_line}</p>}
                         {product.description && <p className="mt-4 whitespace-pre-line text-sm leading-7 text-subtle">{product.description}</p>}
 
+                        {/* A kit says what it contains before the shopper adds it to the bag. */}
+                        <KitContents variant={selectedVariant} />
+
                         {/* Variant picker: one row of buttons per option name */}
                         {optionKeys.map((key) => {
                             const values = [];
@@ -338,7 +362,7 @@ function ProductDetail() {
 
                         {addon?.shipping_flat_paise != null &&
                             <p className="mt-5 text-xs text-subtle" data-testid="shipping-line">
-                                Shipping {formatINR(addon.shipping_flat_paise)}. Free on orders of {formatINR(addon.free_shipping_threshold_paise)} or more.{' '}
+                                {shippingLine(addon)}{' '}
                                 <Link to="/policy/shipping" className="ui-link">Shipping policy</Link>
                             </p>
                         }

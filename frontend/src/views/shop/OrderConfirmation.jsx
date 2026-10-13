@@ -149,6 +149,9 @@ function OrderConfirmation() {
                         <div className="flex justify-between text-accent"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span>-{formatINR(order.saved_paise)}</span></div>
                     }
                     <div className="flex justify-between"><span>Shipping</span><span>{order.shipping_amount_paise > 0 ? formatINR(order.shipping_amount_paise) : 'Free'}</span></div>
+                    {order.cod_fee_paise > 0 &&
+                        <div className="flex justify-between" data-testid="confirmation-cod-fee"><span>Cash on Delivery fee</span><span>{formatINR(order.cod_fee_paise)}</span></div>
+                    }
                     <div className="mt-2 flex justify-between border-t border-line pt-3 font-display text-2xl"><span>Total</span><span data-testid="confirmation-total">{formatINR(order.total_paise)}</span></div>
                     <p className="text-right text-xs text-subtle">Inclusive of all taxes{isCod ? '. Cash on Delivery' : ''}</p>
                 </div>

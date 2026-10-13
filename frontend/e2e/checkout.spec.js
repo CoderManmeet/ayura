@@ -184,3 +184,72 @@ test('G3 + G4: owner confirms, ships and delivers a COD order; the customer buys
     await expect(page.getByTestId('review-box')).toContainText('will appear once it has been checked');
     await expect(page.getByText('Light and easy to use every day.')).toHaveCount(0);
 });
+
+// --- Phase C (Ayura): owner-set shipping and the Cash on Delivery fee -------------------------
+//
+// This test changes store-wide settings, so it puts them back afterwards through the API (in a
+// `finally`), whatever happens, for the specs that run after it.
+
+const API = `http://127.0.0.1:${Number(process.env.E2E_API_PORT || 8011)}/api/v1/`;
+const DEFAULT_SETTINGS = {
+    shipping_enabled: true, shipping_flat: '79', free_shipping_enabled: true, free_shipping_threshold: '999',
+    cod_enabled: true, cod_fee_enabled: false, cod_fee: '0',
+};
+
+const ownerSettings = async (request, values) => {
+    const token = await request.post(`${API}user/token/`, { data: { email: OWNER, password: PASSWORD } });
+    expect(token.status()).toBe(200);
+    const { access } = await token.json();
+    const response = await request.patch(`${API}owner/settings/`, {
+        data: values, headers: { Authorization: `Bearer ${access}` },
+    });
+    expect(response.status(), await response.text()).toBe(200);
+};
+
+test('C: the owner switches on a ₹49 COD fee; the shopper sees it before placing the order', async ({ page, request }) => {
+    test.setTimeout(120_000);
+    try {
+        // --- the owner turns the fee on in Store settings
+        await signIn(page, OWNER);
+        await page.goto('/admin-area/owner/settings/');
+        await page.getByTestId('setting-cod-fee-enabled').check();
+        await page.getByTestId('setting-cod-fee').fill('49');
+        await page.getByTestId('save-settings').click();
+        await expect(page.getByTestId('settings-notice')).toContainText('Settings saved');
+        await expect(page.getByTestId('settings-summary')).toContainText('Cash on Delivery with a ₹49 fee');
+        await signOut(page);
+
+        // --- a guest: the cart already says what COD adds
+        await addProduct(page, 'face-serum', '30 ml');
+        await page.goto('/cart/');
+        await expect(page.getByTestId('summary-total')).toHaveText('₹528');
+        await expect(page.getByTestId('cart-cod-fee-note')).toContainText('adds a ₹49 fee');
+
+        // --- checkout: online stays ₹528; choosing COD shows the fee and ₹577 before "Place order"
+        await goToCheckout(page);
+        await expect(page.getByTestId('cod-fee-label')).toHaveText('(+ ₹49 fee)');
+        await expect(page.getByTestId('summary-total')).toHaveText('₹528');
+        await expect(page.getByTestId('summary-cod-fee')).toHaveCount(0);
+        await expect(page.getByTestId('pay-online')).toHaveText('Pay ₹528');
+        await page.getByLabel('Cash on delivery').check();
+        await expect(page.getByTestId('summary-cod-fee')).toHaveText('₹49');
+        await expect(page.getByTestId('summary-total')).toHaveText('₹577');
+        await expect(page.getByTestId('checkout-summary')).toContainText('You pay ₹577 in cash when your order arrives, including the ₹49 Cash on Delivery fee');
+        await page.getByTestId('place-cod').click();
+
+        await expect(page).toHaveURL(/\/order\//);
+        await expect(page.getByTestId('confirmation-cod-fee')).toHaveText(/₹49/);
+        await expect(page.getByTestId('confirmation-total')).toHaveText('₹577');
+
+        // --- shipping switched off: every page says so, and the home page names the COD fee
+        await ownerSettings(request, { shipping_enabled: false });
+        await page.goto('/');
+        await expect(page.getByTestId('announcement')).toHaveText('Free shipping on every order');
+        await expect(page.getByTestId('payment-fact')).toHaveText('Pay online, or on delivery for a ₹49 fee');
+        await page.goto('/policy/shipping');
+        await expect(page.getByTestId('policy-shipping')).toContainText('Shipping is free on every order.');
+        await expect(page.getByTestId('policy-shipping')).toContainText('Cash on Delivery orders pay a ₹49 fee');
+    } finally {
+        await ownerSettings(request, DEFAULT_SETTINGS);
+    }
+});

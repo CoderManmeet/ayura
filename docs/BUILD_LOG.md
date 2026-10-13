@@ -36,6 +36,978 @@ the owner's answers (Y1-Y20), the defaults taken (Z1-Z9) and the legal questions
 
 ---
 
+## Phase F decisions (13 Oct 2026)
+
+The grievance-officer wording was a stop-and-ask (ROADMAP L4). **Asked and answered by the owner
+on 13 Oct 2026: owner-entered fields, shown only when filled.** No legal wording is written by
+this codebase; see F13.
+
+| # | Question | Decision | Why | Cost to reverse |
+|---|---|---|---|---|
+| F1 | How a thread is addressed | By a random 10-character `ref` (lower-case letters, like an order's `oid`), never by its database id | It is printed in emails and read out over the phone; a sequential id would let anyone count the store's complaints | n/a |
+| F2 | Is the reference itself access? | **No.** The ref identifies a thread; reading one needs an account that owns it, a signed link, or staff. A bare ref gets 403 | It is shown in emails and support chat and is not secret. Proven by a test and in the e2e suite | n/a |
+| F3 | A missing thread vs someone else's | **Identical 403 and identical body.** Probing cannot discover which references exist | Otherwise the endpoint is an oracle for how many queries the store has | One branch |
+| F4 | How a guest gets back in | A signed, time-limited token naming ONE query (`django.core.signing`, the G3 account-link pattern), shown on screen as soon as they send and emailed as well | A guest has no account to sign in to. Showing it on screen means a thread survives the email never arriving | Low |
+| F5 | Is the reference in the guest's link? | **No.** The link is `/support/thread?token=...` with no ref in it, and a separate endpoint resolves the token server-side | A link with a reference in it invites editing that reference. With none there, there is nothing to tamper with except the signature | One endpoint |
+| F6 | Link lifetime | `SUPPORT_LINK_HOURS`, default **720 (30 days)** | Long enough for a damaged parcel to be sorted out; short enough that an old forwarded email stops opening the thread | One default |
+| F7 | A guest who lost the link | Order number **plus** the email on that order returns it. The answer is the same whichever half is wrong | The same bar as the existing guest order page (orders are addressable by their random oid), with the order's email on top. The identical answer stops it being used to test whether an address shops here | Low |
+| F8 | Who may read a thread | Its account (matched by user, or by the account's email for a thread opened as a guest before the account existed), a valid link, or staff. **Another signed-in customer gets 403** | Roadmap acceptance line. Proven load-bearing by removing the check: 2 tests fail | One function |
+| F9 | Are photos really photos? | The bytes are opened and verified with Pillow. The file's name and the content type the browser claims are **never** trusted, and a refused upload stores **nothing** — not a row, not a file, not the thread | A PDF renamed `.png` arrives with `image/png` because the browser guesses from the extension. Caught while writing the e2e test, which is exactly how an attacker would send it | One function |
+| F10 | Photo limits | 3 per message, 5 MB each (`SUPPORT_MAX_PHOTOS_PER_MESSAGE`, `SUPPORT_PHOTO_MAX_MB`). Checked in the browser **and** on the server | The browser check saves the customer a wasted upload; the server check is the gate. The shipped defaults are proven by a test run in a clean interpreter | Two defaults |
+| F11 | Messages append-only | `QueryMessage` subclasses `core.models.AppendOnlyModel`; the Django admin shows it read-only | What the store told a customer is a record. It is never edited or quietly removed | A base class |
+| F12 | Closing a thread | Never the last word: a customer who writes back **reopens** it, and it returns to the inbox with `owner_unread` set | A closed-but-unsolved problem would otherwise vanish. Confirms with an audit row whose reason says "reopened a closed query" | Low |
+| F13 | Grievance officer (L4) | Six **owner-entered** fields on `addon.ConfigSettings`, all blank on a fresh install. The Contact page renders the block **only once a name is filled in**, and only the fields she filled. This codebase writes no grievance wording at all | A legal statement is a stop condition (CLAUDE.md §7). Blank-by-default means nothing is ever published on the owner's behalf; the heading "Grievance officer" is the only text this repository contributes | Six columns |
+| F14 | Is email required for support to work? | **No.** Email is queued through `core.jobs` after the thread exists, so a store with no provider configured still has a working inbox. Proven by a test that makes every send fail and then answers the thread anyway | Free hosting may have no mail provider for a while; a customer must never lose a report to a mail-server error | n/a |
+| F15 | What goes in an email | The reference, the subject and the link. **Not the message bodies** | The conversation lives in the admin area. Copying a customer's words into a third-party mail provider's logs is not needed for them to click through | Low |
+| F16 | Telling the owner by email | Only when `SUPPORT_NOTIFY_EMAILS` is set; blank by default sends nothing | The inbox with its unread badge is the system of record. A default address would be a guess | One setting |
+| F17 | Unread tracking | **Two independent flags** (`owner_unread`, `customer_unread`), not one "last read by" | One flag means the owner opening a thread clears the customer's badge, and the reverse. Reading is not audited: it is not a state change | Two columns |
+| F18 | Throttle scope | New `support` scope, default **20/min**, on every customer-facing support endpoint. The owner's screens sit under the ordinary signed-in limit | Opening a thread is public by necessity and carries file uploads. A test asserts each view names the scope, because one that forgot would silently fall back to the far looser anonymous limit | One setting |
+| F19 | Where the `support` app sits | A new Django app, with `support/tests` added to `pytest.ini` testpaths | CLAUDE.md §2 trap: a test file in a new app is silently not collected until its directory is listed. Shown: at `31e5d5d` the suite collects 275 tests and never looks at `support/` | One line |
+| F20 | FormData and the shared Axios instance | Every support upload passes `Content-Type: multipart/form-data` per request | The shared instance sets `application/json` for all requests, which strips the multipart boundary and makes files vanish **silently**. Found by the e2e test; every existing upload in this project passes the header the same way | One constant |
+
+---
+
+## PHASE F follow-up — a shipped-default test that was reading the local .env (13 Oct 2026)
+
+Reported by the owner right after applying Phase F: `python -m pytest -q` gave
+**1 failed, 324 passed, 4 skipped**, with
+`tests/test_dispatch_samples.py::test_the_shipped_shelf_life_default_is_zero_days` asserting
+`'30' == '0'`.
+
+**Two separate things, one symptom.**
+
+1. **The owner's `backend/.env` still had `MIN_SHELF_LIFE_ON_DISPATCH_DAYS=30`**, the Phase C
+   value. APPLY-PHASE-D.md section 4 asked for it to be set to 0 and it was missed. This is not
+   only a test failure: with 30 in force the store holds back any batch with under a month of
+   shelf life left, which is not the behaviour ROADMAP Z1 settles on. Fixed by the owner setting
+   it to 0 (or deleting the line).
+
+2. **The test could never have done what it claimed.** Its docstring said it read the setting
+   "in a fresh interpreter with the variable unset, so a value in anyone's own .env cannot hide
+   a change to the default the store ships with". It did run a subprocess with the variable
+   removed — but `environs.Env.read_env()` searches upward from **settings.py's own directory**,
+   not the working directory, so `backend/.env` was always found and loaded anyway. The test was
+   reading the local value the whole time. It passed on the build machine only because that
+   `.env` happened to say 0.
+
+**The fix.** `backend/settings.py` now honours `DJANGO_ENV_FILE`: named, it loads that file
+instead (no upward search); pointed at a path that does not exist, it loads **no** env file and
+every value falls back to the default written in the code. A new session-scoped
+`shipped_setting` fixture in `conftest.py` uses that to read any setting as a fresh install has
+it, supplying its own `DJANGO_SECRET_KEY` because the `.env` that normally provides one is
+deliberately not loaded.
+
+The same latent flaw was in Phase F's own
+`test_the_shipped_photo_limits_are_three_and_five_mb`, which passed only because no `.env` in
+play happened to set the `SUPPORT_*` variables. It now uses the fixture too, and also checks
+the shipped `support` throttle rate.
+
+**Files modified**
+
+- `backend/backend/settings.py` — `DJANGO_ENV_FILE` support (additive; unset behaves exactly as before).
+- `backend/conftest.py` — the `shipped_setting` fixture.
+- `backend/tests/test_dispatch_samples.py` — the shelf-life test now really isolates `.env`,
+  plus `test_a_local_env_file_cannot_disguise_a_shipped_default`, which proves the isolation
+  itself works (set the variable and the subprocess reports it; unset it and the shipped 0 comes
+  back). Without that, the first test could quietly regress to reading `.env` again.
+- `backend/support/tests/test_support.py` — `test_the_shipped_photo_and_link_limits` rewritten
+  on the fixture.
+- `backend/.env.example` — `DJANGO_ENV_FILE` documented, commented out.
+
+**Verified**
+
+- Reproduced the owner's failure exactly by setting the build machine's own `.env` to 30.
+- With `.env` **still at 30**, the whole suite passes: **326 passed, 4 skipped**. That is the
+  real check — no test anywhere now depends on the local `.env` value.
+- The new isolation proven load-bearing by changing the shipped default in `settings.py` to 30:
+  both tests fail, and pass again when it is restored.
+- `.env` back at 0: **326 passed, 4 skipped** (SQLite), **330 passed** (PostgreSQL 16),
+  `npm run build` succeeds, `npx playwright test` **34 passed**.
+
+No migration. No behaviour change for any customer: the only runtime change is that a setting
+may now be read from a file named by `DJANGO_ENV_FILE`, and nothing sets that in production.
+
+---
+
+## PHASE F — Customer support queries (COMPLETED)
+
+### 1. PHASE COMPLETED
+
+**Phase F**, branch `phase/F-support`, built on Phase E `31e5d5d`.
+
+- **A customer can report a problem**, with photos, from the Contact page ("Get help") or from
+  an order ("Report a problem with this order"). They get a reference and a conversation both
+  sides can read, rather than an email that may or may not be answered.
+- **No account needed.** A guest is handed a signed link to their own thread, on screen and by
+  email. That link opens that one conversation and nothing else, and expires after 30 days.
+  Lost it? The order number plus the email they ordered with gives it back.
+- **A signed-in customer** sees every thread under "My conversations", including ones they
+  opened as a guest with the same email before the account existed.
+- **The owner answers from the admin area.** A new **Support** screen with an unread count in
+  the sidebar: the inbox, the whole conversation with the customer's photos, reply, reply and
+  close, close without replying, reopen. Every change is audited.
+- **Closing is not the last word**: a customer who writes back reopens the thread.
+- **Email is a courtesy, never a dependency**: the thread works with no provider configured.
+- **The grievance-officer block (L4) publishes nothing.** Six fields the owner types herself,
+  blank on a fresh install, shown on the Contact page only once she has filled the name in.
+- **Nothing is deleted or renamed.** One new app, one new table group, six new nullable
+  columns on the settings row, nine new endpoints.
+
+### 2. FILES CREATED
+
+Backend, the new `support` app:
+
+- `backend/support/__init__.py`, `backend/support/apps.py`
+- `backend/support/models.py` — `Query`, `QueryMessage` (append-only), `QueryPhoto`
+- `backend/support/services.py` — every write to a thread, and the photo checks
+- `backend/support/links.py` — the signed guest link
+- `backend/support/emails.py` — the two background email jobs
+- `backend/support/serializers.py` — the customer's view and the owner's view
+- `backend/support/views.py` — the customer-facing endpoints
+- `backend/support/owner_views.py` — the owner's inbox
+- `backend/support/admin.py` — the Django admin fallback, messages read-only
+- `backend/support/migrations/__init__.py`, `backend/support/migrations/0001_initial.py`
+- `backend/support/tests/__init__.py`, `backend/support/tests/test_support.py` — 54 tests
+- `backend/addon/migrations/0008_grievance_officer.py`
+- `backend/templates/email/support_update.txt`, `backend/templates/email/support_update.html`
+
+Frontend:
+
+- `frontend/src/views/support/supportApi.js` — the one place the three ways into a thread live
+- `frontend/src/views/support/PhotoPicker.jsx`
+- `frontend/src/views/support/NewQuery.jsx` — "Get help"
+- `frontend/src/views/support/Thread.jsx` — one conversation, by account or by link
+- `frontend/src/views/support/MyQueries.jsx`
+- `frontend/src/views/support/FindThread.jsx`
+- `frontend/src/views/owner/OwnerSupport.jsx` — the inbox and one thread
+- `frontend/src/views/policy/GrievanceOfficer.jsx` — renders nothing until the owner fills it in
+- `frontend/e2e/support.spec.js` — 3 Playwright tests
+
+### 3. FILES MODIFIED
+
+- `backend/backend/settings.py` — `support` in `INSTALLED_APPS`; the `support` throttle rate;
+  `SUPPORT_LINK_HOURS`, `SUPPORT_MAX_PHOTOS_PER_MESSAGE`, `SUPPORT_PHOTO_MAX_MB`,
+  `SUPPORT_NOTIFY_EMAILS`.
+- `backend/pytest.ini` — `support/tests` added to `testpaths` (F19).
+- `backend/api/urls.py` — the nine new routes.
+- `backend/addon/models.py` — the six owner-entered grievance fields, blank by default (F13).
+- `backend/store/owner_settings.py` — those fields on GET and PATCH, audited; the new
+  `COUNTS` handling for `grievance_response_days`.
+- `backend/.env.example` — `THROTTLE_SUPPORT` and the four `SUPPORT_*` variables.
+- `frontend/src/App.jsx` — five lazy routes (`/support/new`, `/support/find`,
+  `/support/thread`, `/support/thread/:ref`, `/support/mine`) and two admin-area ones.
+- `frontend/src/views/vendor/Sidebar.jsx` — **Support** in the daily group, with the unread badge.
+- `frontend/src/views/policy/Contact.jsx` — the "Get help" panel and the grievance block.
+- `frontend/src/views/customer/OrderDetail.jsx` — "Report a problem with this order", and the
+  threads already opened about it.
+- `frontend/src/views/owner/OwnerSettings.jsx` — the grievance-officer card.
+- `frontend/playwright.config.js` — `support.spec.js` added to `testMatch`.
+- `docs/BUILD_LOG.md` — this section.
+
+New endpoints:
+
+| Method | Path | Access | What |
+|---|---|---|---|
+| POST | `support/queries/` | anyone | start a thread (multipart with photos, or JSON) |
+| GET | `support/queries/mine/` | signed in | my own threads |
+| GET/POST | `support/queries/<ref>/` | its account, or staff | read one thread / reply |
+| GET/POST | `support/thread/?token=` | a valid signed link | read / reply by link alone (F5) |
+| POST | `support/find/` | anyone | order number + email → the link back |
+| GET | `support/orders/<oid>/queries/` | the order's customer | threads about one order |
+| GET | `owner/support/` | staff | the inbox and the counts |
+| GET/POST | `owner/support/<ref>/` | staff | read (clears unread) / reply |
+| POST | `owner/support/<ref>/close/` | staff | close or reopen |
+
+Audited actions: `support.query_opened`, `support.customer_replied`, `support.owner_replied`,
+`support.closed`, `support.reopened`, and `settings.updated` for the grievance fields — each
+with actor, before and after (rule 9).
+
+### 4. MIGRATIONS ADDED
+
+| Migration | What | Reverse |
+|---|---|---|
+| `addon.0008_grievance_officer` | six grievance fields on the settings row, all blank / 0 | drops the six columns |
+| `support.0001_initial` | `Query`, `QueryMessage`, `QueryPhoto` and the status index | drops the three tables |
+
+Back up first, then `python manage.py migrate`. Roll back Phase F only, **in this order**
+(`support.0001` references `store.CartOrder`, which is untouched):
+
+    python manage.py migrate support zero
+    python manage.py migrate addon 0007
+
+Verified on a copy of the database: apply, roll back both, re-apply, all clean;
+`makemigrations --check` reports no changes. Note that rolling back drops the conversations;
+photo **files** already uploaded stay on disk (or in Cloudinary) and would have to be removed
+by hand.
+
+### 5. ENV VARS ADDED
+
+All optional, all with working defaults; documented in `backend/.env.example`:
+
+| Variable | Default | What |
+|---|---|---|
+| `THROTTLE_SUPPORT` | `20/min` | opening and replying to a thread, including uploads |
+| `SUPPORT_LINK_HOURS` | `720` | how long a guest's signed link keeps working (F6) |
+| `SUPPORT_MAX_PHOTOS_PER_MESSAGE` | `3` | photos per message |
+| `SUPPORT_PHOTO_MAX_MB` | `5` | size of each photo |
+| `SUPPORT_NOTIFY_EMAILS` | *(blank)* | who is emailed when a query comes in; blank sends nothing (F16) |
+
+Nothing existing changed. No secret is involved.
+
+### 6. TESTS ADDED
+
+`backend/support/tests/test_support.py`, 54 tests:
+
+- **Opening a thread.** A guest gets a thread and their own signed link; a signed-in customer
+  gets one on their account with the account's email and no link; a thread can be about an
+  order and takes the phone off it; a thread cannot be attached to someone else's order (403)
+  or to an order that does not exist, and neither attempt creates anything; an empty subject,
+  body or email is refused with a usable message and creates nothing; opening is audited.
+- **Photos.** Real pictures are stored with the message; a PDF wearing an image name and
+  content type is refused and **nothing** is stored; one bad photo refuses the whole message,
+  including the good one next to it; more than three is refused; over the size limit is
+  refused; an empty file is refused; the shipped limits (3, 5 MB, 720 h, no notify address) are
+  read in a clean interpreter so no local `.env` can hide a change to them.
+- **Who may read a thread.** A customer cannot read or write on another customer's thread
+  (403); the reference alone opens nothing; a missing thread and someone else's answer
+  identically; staff may read any; a guest thread opened with an account's email belongs to
+  that account; "my threads" lists only my own and needs an account.
+- **The guest link.** It opens its own thread; it opens **no other** thread; it expires; a
+  tampered token is refused; a guest can reply on it; order number + email returns the link,
+  with the right email required and the same answer whichever half is wrong.
+- **The owner answers.** A reply marks the thread ANSWERED, the customer sees it and reading it
+  clears their badge; the reply records which staff user wrote it and is audited; she can close
+  as she replies; a customer writing back **reopens** a closed thread and it returns to the
+  inbox; close and reopen without replying, with closing twice writing no second audit row; an
+  empty reply is refused.
+- **The inbox.** The counts separate open / answered / closed / unread; the default view hides
+  closed threads and puts unread first; opening a thread clears its unread flag; the row shows
+  who is asking and about which order; every owner endpoint is staff-only and a customer's
+  attempts write nothing.
+- **Messages are a record.** Append-only: editing or deleting raises.
+- **Email is a courtesy.** One acknowledgement per thread and exactly one notice per reply,
+  each with its own dedupe key; the owner is told only when an address is configured; with
+  every send failing the thread still exists and is still answerable; the email carries the
+  reference and a signed link that resolves to that thread, and **no message text**.
+- **The throttle.** Every customer-facing view names the `support` scope and the configured
+  rate is `20/min`; the limit really bites (3 allowed, then 429) and the refused requests
+  create nothing.
+- **Grievance officer (L4).** Every field ships blank and `grievance_response_days` is 0; the
+  owner sets them and the change is audited with before and after; they are public once set;
+  a customer cannot set them (403).
+
+Shown failing first against `31e5d5d`: collection error
+(`ImportError: cannot import name 'links' from 'support' (unknown location)`), and at that
+commit the suite collects **275 tests** and never looks in `support/` at all (F19). The access
+checks (F8, F5) were additionally proven load-bearing by removing them — 3 tests then fail,
+including both "another customer" tests and "a guest link opens no other thread" — and
+restoring them.
+
+    python -m pytest support/tests/test_support.py -q  ->  54 passed
+    python -m pytest -q                               ->  325 passed, 4 skipped (SQLite)
+    $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
+    python -m pytest -q                               ->  329 passed (PostgreSQL 16)
+
+Playwright, `frontend/e2e/support.spec.js`, 3 tests: a signed-in customer orders, reports the
+order damaged from the order page, has an honestly-named PDF refused in the browser and a PDF
+renamed `.png` refused by the server (nothing stored either time), sends a real photo, and sees
+the order page switch to "Report something else"; the owner sees the unread badge count 1, opens
+the thread with the photo, cannot send an empty reply, answers, and the badge clears; the
+customer sees "New reply", reads it, writes back and the thread returns to "Waiting for us". A
+guest reports a problem from the Contact page with no account, gets a link, opens it, adds to
+the thread, and finds that the bare reference and a tampered token open nothing; the owner sees
+it marked "(guest)" and closes it with a reply; the guest writes back and it reopens. The
+grievance block is absent from the Contact page, the owner fills in four of the six fields, and
+it appears with her own words and no empty row for the address she left blank.
+
+    npm run build          ->  built
+    npx playwright test    ->  34 passed
+
+### 7. MANUAL VERIFICATION STEPS
+
+Back up, migrate (section 4), `python -m pytest -q`, `npm run build`, run both servers and the
+worker (`python manage.py run_worker`), then:
+
+1. **As a shopper**: Contact → **Get help**. Report something, attach a photo, send. You get a
+   reference. Signed out, you also get a link on screen — open it in a private window and the
+   conversation is there.
+2. Paste that link with the last few characters changed: it opens nothing. Visit
+   `/support/thread/<the reference>` with no token: it opens nothing either.
+3. **As the owner**: Admin area → **Support** (sidebar, with a count). Open the thread: the
+   photo is there, full size on click. Reply. The status becomes Answered and the count clears.
+4. **As the shopper** again: "My conversations" (or the guest link) shows the reply. Write back:
+   the thread goes back to "Waiting for us" and reappears in the owner's inbox.
+5. Close a thread as the owner, then write back as the customer: it reopens.
+6. Try to attach a renamed file (copy a PDF to `photo.png`): refused, with the reason, and the
+   message is not sent.
+7. Open someone else's conversation: sign in as a different customer and visit
+   `/support/thread/<their reference>` — "We cannot open that conversation."
+8. **Grievance officer**: Admin area → Store settings → Grievance officer. The Contact page has
+   no such block until you fill in a name. Fill one in and only the fields you typed appear.
+9. Django admin → Support → Queries: the conversation is there and its messages cannot be edited.
+
+### 8. ASSUMPTIONS MADE (exhaustive)
+
+1. Decisions F1-F20.
+2. A customer picks a reason from a fixed list, and the subject defaults to that reason when
+   they type none. The list is storefront copy, not stored data.
+3. A message body is capped at 4,000 characters and a subject at 200.
+4. Photos go on a customer's message. The owner may attach them too (the service accepts them);
+   her screen has no picker yet.
+5. Photos are stored under `support/<ref>/` in whatever storage the store already uses
+   (Cloudinary when configured, the local media folder otherwise).
+6. A thread is attached to at most one order. A problem spanning two orders is two threads.
+7. A guest thread is matched to an account by email only when the thread has no user and the
+   addresses match exactly (lower-cased), the same rule as the G3 account link.
+8. "My conversations" and the inbox are unpaged; at this size that is a handful of queries.
+9. The sidebar's unread count is read when the admin area navigates, not pushed live.
+10. The owner's reply is plain text. No formatting, no templates, no canned replies.
+11. Reading a thread is not audited: it changes no state. Who answered is recorded on the
+    message and in the audit row.
+12. `support.0001_initial` references `store.CartOrder` with `SET_NULL`, so a deleted order
+    (which the store does not do) would leave the conversation intact.
+13. Email failures retry on the job runner's own backoff; after `JOB_MAX_ATTEMPTS` the job is
+    DEAD and the thread is unaffected.
+
+### 9. KNOWN GAPS
+
+- **No canned replies or templates** for the owner; every answer is typed.
+- No search in the owner's inbox, and no filter by customer or order — only by status.
+- The owner cannot attach a photo from her screen (the service supports it; the UI does not).
+- No "assigned to" or internal notes: one owner, one inbox.
+- A customer cannot close their own thread; they can stop replying, and the owner closes it.
+- No WhatsApp route into a thread. Phase F is email and the web only; the Cloud API is still
+  deferred.
+- The customer's email is not verified when a guest opens a thread, so a mistyped address means
+  the acknowledgement bounces. The on-screen link is the mitigation (F4).
+- No attachment virus scanning beyond "is it really an image".
+- Photos are never deleted, including when a thread is rolled back out of the database.
+- The unread count is per store, not per staff user; a second staff member sees the same badge.
+- `SUPPORT_LINK_HOURS` cannot be changed from the Store settings screen, only in the environment.
+- The Contact page's grievance block is the only place those details appear; they are not in the
+  policy pages or in emails.
+
+### 10. NOT DONE AND WHY
+
+- **The grievance-officer wording itself**: a legal interpretation, and a stop condition
+  (CLAUDE.md §7). The fields are the owner's to fill; L4 is still open in the roadmap.
+- Returns and refunds as a *process* (approve a return, issue a refund): not in Phase F, which
+  is the conversation only. The owner refunds through Razorpay's dashboard as before.
+- WhatsApp Cloud API inbound messages: deferred with the rest of that integration.
+- Automatic expiry emails to the owner: still waiting on the email-provider decision from
+  G5 part B, as in Phase D.
+- Phase F is the last phase in the roadmap. What is ranked for later is listed under
+  "Ranked for later (not scheduled)" in `docs/ROADMAP.md`.
+
+---
+
+## Phase E decisions (13 Oct 2026)
+
+| # | Question | Decision | Why | Cost to reverse |
+|---|---|---|---|---|
+| E1 | Where a kit's stock lives | Nowhere. A kit variant has **no ledger rows of its own**: `available_qty` for a kit is `min(component available // qty)`, and booking a batch against a kit is refused by `owner/variants/<id>/stock/` | Two numbers for one thing always drift. The ledger stays the single source | One branch in `available_qty` |
+| E2 | What a kit's reservation looks like | The **components** are reserved, each hold tagged with `StockReservation.kit_variant`. The kit itself is never reserved (`reserve` raises `InvalidMovement` for a kit) | Dispatch, cancellation and expiry then need no kit-specific code: they already follow reservations | A column |
+| E3 | Order of component locks | `reserve_kit` takes its parts **ordered by `component_variant_id`**, always | Two shoppers buying overlapping kits would otherwise take the same two row locks in opposite orders and deadlock | One `order_by` |
+| E4 | What the shopper is told when a kit is short | `InsufficientStock` is re-raised naming the **kit** and how many kits are possible, never the component | "Only 2 left" about a serum the shopper never asked for is confusing, and it leaks which parts are scarce | Low |
+| E5 | Partial kits | Never. `reserve_kit` is one transaction: if any component is short, **nothing** is held | Half a kit is not a product. A stray hold on the cleanser would quietly block someone else's order | n/a |
+| E6 | Releasing one cart line | `release_cart_line(cart_id, variant)` is kit-aware in both directions: dropping the kit releases only holds tagged with that kit; dropping a plain line of the same size releases only holds **not** tagged with a kit (`kit_variant__isnull=True`) | The same size is often in the bag twice — alone and inside a kit. Proven load-bearing by removing the filter (a test then sees 8 where 7 is right) | One filter |
+| E7 | Which order line a component hold belongs to | The **kit's** line. `attach_reservations_to_order` maps `reservation.kit_variant_id or reservation.variant_id` to the order item | The order has one line (the kit) at one price; the packing screen then shows the batches under that line | One expression |
+| E8 | Re-reserving after a late payment | `hold_for_order` measures a kit line in **kits** (`_held_for_item`: the scarcest component's held quantity divided by its per-kit quantity) and re-reserves the missing kits with `reserve_kit` | Counting raw units would see 3 holds for a 1-kit line and think nothing was missing | Low |
+| E9 | A kit's price | The owner's, on the kit size itself. **Never** summed from the components (ROADMAP Z7). The Kits screen shows what the parts come to separately, labelled as such, for the owner only | A kit is usually cheaper than its parts; that is the offer. A computed price would also move whenever a component's price moved | n/a |
+| E10 | Can a kit be the product's main size? | Only when it is the product's **only** size (a gift-set product). It never takes over the "Default" placeholder, which may be holding the opening stock typed when the product was made | Adopting a stocked placeholder would strand those units behind a variant that cannot hold stock | Low |
+| E11 | Kit inside a kit, sample inside a kit | Both refused, at three levels: a database `CheckConstraint` for a kit containing **itself**, a `UniqueConstraint` for the same part twice, and `store/owner_kits.py` for a kit or a sample as a part (ROADMAP Z7) | Nested kits make availability recursive and the owner's arithmetic unguessable; a sample is a gift, not stock sold in a box | n/a |
+| E12 | Kit and sample on one size | Mutually exclusive, server-side (`_apply_variant_fields`) and in the form (each tick disables the other) | A zero-priced giveaway made of real stock is neither one thing nor the other | One check |
+| E13 | What the shopper sees inside a kit | Product, size name and net quantity, in the owner's order. **No component prices** (`kit_contents` has no price field at all) | A bill of materials invites arithmetic the kit's price does not follow. "What's inside" is shown **before** the Add to bag button (section 8: no drip pricing) | Low |
+| E14 | `available_qty_map` and kits | Still a fixed number of queries: kit ids and their components are fetched in two extra queries, then the kits are derived from the component figures already read | A listing page with kits would otherwise fall back to per-component queries | Low |
+| E15 | Expired component stock | A kit whose parts are all expired **counts** as on hand but cannot be reserved, exactly as an ordinary size does (ROADMAP Z1) | One rule for allocation, not two | n/a |
+
+---
+
+## PHASE E — Kits from component stock (COMPLETED)
+
+### 1. PHASE COMPLETED
+
+**Phase E**, branch `phase/E-kits`, built on Phase D `d348ce5`.
+
+- **A kit is a size made of other sizes.** Tick **Kit** on a size on the product's
+  "Sizes & stock" screen, give it the price you want to charge, then say what goes inside it on
+  the new **Kits** screen. A kit keeps **no stock of its own**: how many you can sell is
+  decided by the scarcest thing inside it, and the Kits screen says which part that is.
+- **Buying one holds every part, all or nothing.** Adding a kit to the bag reserves each
+  component through the stock ledger in FEFO order, in one transaction. If any part is short,
+  nothing is held and the shopper is told how many **kits** are available — never which
+  component ran out.
+- **Everything downstream already works.** The order has one line (the kit, at the kit's
+  price); the packing screen shows the batches under it; dispatch turns each component's hold
+  into exactly one `SALE_OUT`; cancelling returns every component; the expiry job and the
+  recall lookup need no kit-specific code, because the holds are component holds.
+- **The shopper sees what is in the box before committing**: a "What's inside" panel above the
+  Add to bag button, listing each part by name and net quantity, with no component prices.
+- **Nothing is deleted or renamed.** Two new nullable columns, one new table, one new screen,
+  three new endpoints. Customers who never see a kit see no change at all.
+
+### 2. FILES CREATED
+
+- `backend/catalog/migrations/0009_kits.py` — `ProductVariant.is_kit` and the `KitComponent` table.
+- `backend/inventory/migrations/0005_reservation_kit.py` — `StockReservation.kit_variant`.
+- `backend/store/owner_kits.py` — the three owner endpoints and the kit rules (E11).
+- `backend/inventory/tests/test_kits.py` — 34 tests (section 6).
+- `frontend/src/views/owner/OwnerKits.jsx` — the kit builder.
+- `frontend/e2e/kits.spec.js` — 3 Playwright tests.
+
+### 3. FILES MODIFIED
+
+- `backend/catalog/models.py` — `ProductVariant.is_kit`, `ProductVariant.kit_parts()`, and the
+  `KitComponent` model with its unique-pair and not-itself constraints.
+- `backend/catalog/admin.py` — a `KitComponent` inline on the variant page; `is_kit` and
+  `is_sample` in the list and the filters.
+- `backend/inventory/models.py` — `StockReservation.kit_variant` (nullable, `SET_NULL`).
+- `backend/inventory/services.py` — `kit_available_qty`; `available_qty` dispatches on
+  `is_kit`; `available_qty_map` derives kit figures from the component figures it already read
+  (E14); `reserve` gained `kit_variant=` and refuses a kit outright (E2); new `reserve_kit`
+  (E3, E4, E5); `release_cart_line` is kit-aware both ways (E6);
+  `attach_reservations_to_order` resolves the kit's line (E7); new `_held_for_item` and a
+  kit-aware `hold_for_order` (E8).
+- `backend/store/views.py` — `put_in_cart` branches to `reserve_kit`; `_release_cart_line`
+  delegates to the kit-aware service.
+- `backend/store/serializers.py` — `ProductVariantSerializer` gained `is_kit` and
+  `kit_contents` (never a price, E13).
+- `backend/store/owner_catalogue.py` — `is_kit` on the variant payload, in the audited field
+  list and in `_apply_variant_fields` (with E12's mutual exclusion); a kit never takes over the
+  placeholder size (E10); `owner/variants/<id>/stock/` refuses a kit (E1).
+- `backend/api/urls.py` — the three kit routes.
+- `frontend/src/views/owner/OwnerProduct.jsx` — a **Kit** tick on the sizes form (it and
+  **Sample** disable each other), a Kit badge on the size row, and a kit's stock panel offers
+  no batches, only a note saying where its stock comes from.
+- `frontend/src/views/shop/ProductDetail.jsx` — the "What's inside" panel.
+- `frontend/src/views/vendor/Sidebar.jsx` — **Kits** in the daily group.
+- `frontend/src/App.jsx` — the lazy route `admin-area/owner/kits/`.
+- `frontend/playwright.config.js` — `kits.spec.js` added to `testMatch`.
+- `docs/BUILD_LOG.md` — this section.
+
+New endpoints, all `IsStaffOwner`:
+
+| Method | Path | What |
+|---|---|---|
+| GET | `owner/kits/` | every kit, what is in it, what each part allows, and the sizes that may be added |
+| POST | `owner/kits/<variant_id>/components/` | `{component_variant_id, qty}` put a part in |
+| PATCH | `owner/kit-components/<id>/` | `{qty}` change how many go in |
+| DELETE | `owner/kit-components/<id>/` | take the part out |
+
+Each one audits `kit.component_added` / `kit.component_updated` / `kit.component_removed` with
+actor, before and after (rule 9).
+
+### 4. MIGRATIONS ADDED
+
+| Migration | What | Reverse |
+|---|---|---|
+| `catalog.0009_kits` | `ProductVariant.is_kit` (False everywhere) and the `KitComponent` table | drops both |
+| `inventory.0005_reservation_kit` | `StockReservation.kit_variant` (null everywhere) | drops the column |
+
+Back up first, then `python manage.py migrate`. Roll back Phase E only, **in this order**
+(`inventory.0005` depends on `catalog.0009`):
+
+    python manage.py migrate inventory 0004
+    python manage.py migrate catalog 0008
+
+Verified on a copy of the database: apply, roll back both, re-apply, all clean;
+`makemigrations --check` reports no changes.
+
+### 5. ENV VARS ADDED
+
+None. No setting changed.
+
+### 6. TESTS ADDED
+
+`backend/inventory/tests/test_kits.py`, 34 tests (2 of them PostgreSQL-only):
+
+- **Availability.** A kit tracks its scarcest component, and follows it down when someone else
+  holds stock; a kit needing 3 of a part divides by 3; a kit has no ledger rows of its own; a
+  kit with nothing in it yet is sold out; a kit with a sold-out component reports
+  `{"state": "sold_out", "label": "Sold out"}` while that component's own size stays in stock;
+  an expired component batch counts as on hand but leaves the kit unbuildable (E15);
+  `available_qty_map` and `available_qty` agree about kits.
+- **Reserving.** Reserving a kit holds every component, tagged with the kit, and never the kit
+  itself; one short component holds nothing at all and the error names the kit with the kit's
+  own number (E4, E5); the kit variant can never be reserved directly; releasing a kit cart
+  line returns every component and leaves a plain line of the same size alone, and the reverse
+  (E6); changing the quantity of a kit line replaces the holds instead of stacking them; asking
+  for more kits than the scarcest part allows is refused with "Only 3 left" and holds nothing.
+- **Order lifecycle.** Checking out puts the component holds on the **kit's** order line (E7);
+  cancelling returns every component with nothing physically moved; dispatch writes exactly one
+  `SALE_OUT` per component and a second dispatch writes none; paying after the holds lapsed
+  re-reserves the whole kit and running it twice does not stack (E8); a paid kit order whose
+  component has since gone reports a shortfall of **2 kits** instead of raising.
+- **Kit rules.** A kit cannot contain itself (database constraint); the same part cannot be
+  listed twice (database constraint); the owner cannot put a kit, a sample or the kit itself
+  inside a kit, each with its own message; a size cannot be a kit and a sample at once; stock
+  cannot be booked against a kit; adding a kit size never takes over the stocked placeholder
+  (E10); the kit's price does not move when a component's price does (E9).
+- **What the shopper sees.** The product payload carries `is_kit`, the kit's real availability,
+  the honest stock label and `kit_contents` in the owner's order — and **no key containing
+  "price"** anywhere in it (E13).
+- **Owner kit builder.** Building a kit and seeing `kits_possible` per part and the bottleneck;
+  changing a quantity and removing a part, each audited; the same part twice is refused with a
+  reason; a part can only be added to a size that is a kit; every endpoint is staff only
+  (anonymous 401/403, a customer 403).
+- **Concurrency (PostgreSQL only, skipped on SQLite).** Two shoppers racing for the last serum,
+  one of them buying it inside a kit: exactly one wins, and the loser leaves no stray cleanser
+  hold behind. Two shoppers racing for the last **kit**: exactly one wins and only the winner's
+  two holds exist.
+
+Shown failing first against `d348ce5`: collection error
+(`ImportError: cannot import name 'KitComponent' from 'catalog.models'`). E6's filter was
+additionally proven load-bearing by removing it — the plain-line release test then sees 8 where
+7 is right — and restoring it.
+
+    python -m pytest inventory/tests/test_kits.py -q  ->  32 passed, 2 skipped
+    python -m pytest -q                              ->  271 passed, 4 skipped (SQLite)
+    $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
+    python -m pytest -q                              ->  275 passed (PostgreSQL 16)
+
+Playwright, `frontend/e2e/kits.spec.js`, 3 tests: the owner adds a "Face routine kit" size with
+the **Kit** tick (which disables **Sample**), sees that it has no stock panel of its own, puts
+Face Serum 30 ml x1 and Face Scrub 50 g x2 inside it, and watches what the kit can sell follow
+the scarcest part as the quantities change; a customer sees "What's inside" with no prices in
+it, buys one for Rs 699 by COD, and one serum and two scrubs leave the shelf while the kit's own
+stock stays nil — then the owner cancels and every component comes back; a third part that has
+never been made is added, the kit goes to 0 and the shop says **Sold out** with the button
+disabled, and taking that part out makes it sellable again. Stock figures are read before and
+after each step rather than hard-coded, because the earlier specs have already bought and
+cancelled things in the same database.
+
+    npm run build          ->  built
+    npx playwright test    ->  31 passed
+
+### 7. MANUAL VERIFICATION STEPS
+
+Back up, migrate (section 4), `python -m pytest -q`, `npm run build`, run both servers, then:
+
+1. Admin → Products → **Sizes & stock** on any product. Add a size, tick **Kit**, set the price
+   you want to charge, save. It gets a blue **Kit** badge, shows 0 available, and its stock
+   panel offers no batches — only a note saying where its stock comes from.
+2. Admin → **Kits** (sidebar, "Every day"). The new kit is listed, empty. Add two or three
+   sizes to it, with quantities. "Kits it allows" appears per part, and the kit's own figure is
+   the smallest of them; the line underneath names the part holding it back.
+3. Change a part's quantity to something large and Save: the kit's figure drops immediately and
+   no stock anywhere has moved. Put it back.
+4. Try to add the kit to itself or a sample to it: refused, with the reason. Adding the same
+   part twice: refused.
+5. Open the shop → that product → choose the kit size. **What's inside** lists the parts with
+   their net quantities and **no prices**, above the Add to bag button. The price shown is the
+   one you set.
+6. Buy one by COD. Admin → Products → the component products: each part's Available has dropped
+   by the kit's quantity. The kit size itself still has no stock of its own.
+7. Admin → Orders → open that order. **Packing** shows the batches under the kit's line.
+   Cancel the order: every component's Available goes back up.
+8. Django admin → Inventory → Stock reservations: the holds are on the components, each with a
+   **kit variant** set. Dispatch an order instead of cancelling and the movements are one
+   `SALE_OUT` per component, none for the kit.
+
+### 8. ASSUMPTIONS MADE (exhaustive)
+
+1. Decisions E1-E15.
+2. A kit's components may come from **other products**, not only the kit's own product; the
+   candidate list on the Kits screen is every active, non-kit, non-sample size in the store.
+3. A kit's shipping weight is the one typed on the kit size, not the sum of its parts' weights:
+   the box is packed differently from the parts.
+4. A kit's net quantity is the one typed on the kit size. Nothing adds up its parts, which may
+   be in different units (30 ml of serum and 50 g of scrub do not add).
+5. A component may be in any number of kits at once; each kit's holds are tagged separately.
+6. A component can still be sold on its own; the two compete for the same stock, first come
+   first served, which is what the lock is for.
+7. A kit may contain a size that is switched off (`active=False`): the Kits screen marks it
+   "Not on sale" and it still limits the kit. Removing it is the owner's call.
+8. Switching a component off does not switch its kits off; the kit's availability simply
+   follows whatever stock that component has.
+9. Changing what is in a kit does not touch orders already placed: those hold component
+   reservations of their own, taken at the time.
+10. A coupon applies to a kit as it does to any line, on the kit's own price.
+11. Taking a part out of a kit does not release holds already taken for carts or orders.
+12. The parts-bought-separately figure on the Kits screen is read off today's component prices
+    and is for the owner's information only; nothing computes with it.
+
+### 9. KNOWN GAPS
+
+- **No "make this kit" helper**: the Kits screen tells you which part is holding a kit back, but
+  there is no button to go straight to adding stock to that part.
+- No kit builder on the product page itself; kits are edited on the one Kits screen (plus the
+  Django admin inline).
+- A kit's own line on the packing screen shows its components' batches, with no heading saying
+  which batch belongs to which part — it reads as a list.
+- `kit_contents` is not shown in the cart, at checkout, on the order page or in the order email;
+  only on the product page. A shopper who wants to re-read what is in the box opens the product.
+- No kit-level low-stock alert; "Only N left" on a kit is the ordinary threshold applied to the
+  derived figure.
+- The Kits screen lists every kit at once with no paging or search. At this size that is fine.
+- A kit cannot contain a kit (E11), so a "double gift set" has to list all the parts again.
+- Nothing stops a kit priced **above** its parts' total; the screen shows both numbers and
+  leaves it to the owner.
+
+### 10. NOT DONE AND WHY
+
+- Customer support queries: phase F.
+- Nested kits: refused by design (E11), not deferred.
+- A printed packing slip listing a kit's parts: not in the roadmap for this phase (it is the
+  same gap Phase D left).
+- Component-level pricing or automatic kit discounts: ROADMAP Z7 settles the price as the
+  owner's own.
+
+---
+
+## Phase D decisions (12 Oct 2026)
+
+| # | Question | Decision | Why | Cost to reverse |
+|---|---|---|---|---|
+| D1 | A partly-built Phase D was found uncommitted in the build repo | **Reviewed and kept** as the foundation (models, migrations, the SAMPLE_OUT kind, `consume_samples_for_order`, `write_off_batch`, `order_batches`, `orders_from_batch`). It matched the house conventions. It was parked on `wip/phase-D-uncommitted` first, then cherry-picked, reviewed line by line and fixed. It had **no tests**, so every line is covered by the new ones | Redoing correct work wastes a phase; shipping unreviewed work breaks rule 11 | n/a |
+| D2 | A gift sample was being booked as a SALE | **Fixed.** `consume_for_order` now excludes sample holds (`sample__isnull=True`). Found while reviewing D1: sample holds carry `order`, so dispatch consumed them first as `SALE_OUT` and `consume_samples_for_order` then found nothing. Proven by removing the fix and watching the test fail | A gift counted as revenue would corrupt every sales figure and the recall lookup | One filter |
+| D3 | `sample_decision` would have reached the customer | `CartOrderSerializer` now **excludes** it; `OwnerCartOrderSerializer` adds it back for the owner's screens | ROADMAP Y19: samples are a surprise. The field sat on `CartOrder`, which the customer's own order API serialises with `__all__` | Low |
+| D4 | A sample's hold could be handed back by the expiry job | Sample holds are pinned for the same long window as a paid order's (`SAMPLE_HOLD_MINUTES`) | The owner adds a sample to a parcel that may be packed hours later; a 30-minute TTL would silently free the stock | One constant |
+| D5 | Can a sample be the main size, or the only size? | No to both: a sample is never `is_default`, never takes over the "Default" placeholder, and cannot be added until the product has a size people can buy | Otherwise a product's price would mirror a zero-priced giveaway | Low |
+| D6 | Does batch lookup list only dispatched orders? | It lists **both**: orders that physically received stock (`SALE_OUT` / `SAMPLE_OUT`) and orders still holding it, each marked `dispatched` true or false | In a recall you also need the parcels that have not gone out yet | Low |
+| D7 | Writing off stock that is held for an order | Refused, with the number that can be written off. Cancel that order first | Writing off stock that is promised to a customer would oversell | Low |
+| D8 | How a customer is recognised for the samples report | Account first, then the email on the order, then the phone. Only orders placed **after** the sample order count, and only a full-size variant of that same product | Y7: measure whether the sample led to a sale. Guests come back without an account | Low |
+| D9 | Where the new endpoints live | New `backend/store/owner_dispatch.py`; the dispatch extras are a **separate** endpoint (`owner/orders/<oid>/dispatch/`) rather than new fields on the order payload | The existing order payload and its tests stay untouched | Move the classes |
+| D10 | Shelf life | `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` default is now **0** (ROADMAP Z1), proven by a test that reads the setting in a fresh interpreter with the variable unset, so nobody's own `.env` can hide a change to the shipped default | Only an already-expired batch is held back; everything else is a flag, not a block (Y12) | One default |
+
+---
+
+## PHASE D — Dispatch checks, free samples, batch lookup (COMPLETED)
+
+### 1. PHASE COMPLETED
+
+**Phase D**, branch `phase/D-dispatch-samples`, built on Phase C `5a68534`.
+
+- **Packing check on every order.** "Handle orders" now shows which batch each line is going
+  out from, with **Expired** and **No use-by date** flags, and the missing date can be typed
+  in right there (audited). Nothing is ever blocked (Y12): the flags inform, the owner decides.
+- **Gift samples.** A sample is a hidden size of a real product (`is_sample`), created on the
+  product's "Sizes & stock" screen with a **Sample** tick. On an order the owner adds samples
+  or records "No samples". Adding one holds its stock; dispatch turns that hold into a
+  `SAMPLE_OUT` movement **exactly once**, so a gift is never counted as a sale. Cancelling the
+  order gives the stock back.
+- **The customer is never told** (Y19): no order page, no email and no answer a customer can
+  reach mentions a sample, and the order total never changes.
+- **Samples report**: per sample, how many orders carried it, how many of those customers came
+  back for that product, the conversion percentage, and which orders.
+- **Stock & expiry screen**: expired stock still on the shelf, stock due within the alert
+  window, and stock with no use-by date. Writing stock off is a `DAMAGE_OUT` movement in the
+  ledger, never an edit, and never touches stock held for an order.
+- **Batch lookup (recall)**: type a batch code and see every order that received stock from it,
+  including parcels not yet sent.
+- **Shelf life default is 0** (Z1): only an already-expired batch is held back from allocation.
+
+### 2. FILES CREATED
+
+- `backend/catalog/migrations/0008_productvariant_is_sample.py`
+- `backend/inventory/migrations/0003_alter_stockmovement_kind.py`
+- `backend/inventory/migrations/0004_reservation_sample.py`
+- `backend/store/migrations/0043_order_samples.py`
+- `backend/store/samples.py`
+- `backend/store/owner_dispatch.py`
+- `backend/tests/test_dispatch_samples.py`
+- `frontend/src/views/owner/OwnerExpiry.jsx`
+- `frontend/src/views/owner/OwnerSamples.jsx`
+- `frontend/e2e/owner.spec.js`
+
+### 3. FILES MODIFIED
+
+- Backend: `backend/settings.py` and `.env.example` (shelf-life default 0), `catalog/models.py`
+  (`is_sample`, `sellable`), `inventory/models.py` (`SAMPLE_OUT`, `StockReservation.sample`),
+  `inventory/services.py` (sample holds, the sale/sample fix, `consume_samples_for_order`,
+  `write_off_batch`, `order_batches`, `orders_from_batch`, `undated_batches_with_stock`),
+  `store/models.py` (`OrderSample`, `CartOrder.sample_decision`), `store/order_state.py`
+  (dispatch also consumes samples), `store/serializers.py` (the customer/owner split),
+  `store/views.py` (samples never sellable), `store/owner_views.py` (owner serializer),
+  `store/owner_catalogue.py` (create and edit a sample size), `api/urls.py`
+- Frontend: `src/App.jsx`, `src/views/vendor/Sidebar.jsx`, `src/views/owner/OwnerOrderDetail.jsx`
+  (packing and gift samples), `src/views/owner/OwnerProduct.jsx` (the Sample tick),
+  `playwright.config.js`
+- Docs: `docs/BUILD_LOG.md`
+
+New owner endpoints (staff only):
+
+    GET  /api/v1/owner/orders/<oid>/dispatch/     POST /api/v1/owner/orders/<oid>/samples/
+    GET  /api/v1/owner/expiry/                    POST /api/v1/owner/batches/<id>/write-off/
+    GET  /api/v1/owner/batch-lookup/?code=        GET  /api/v1/owner/samples-report/
+
+Nothing was removed or renamed. One field moved out of a customer-facing payload (D3); it was
+added in this phase and no customer screen ever read it.
+
+### 4. MIGRATIONS ADDED
+
+| Migration | What | Reverse |
+|---|---|---|
+| `catalog.0008_productvariant_is_sample` | `is_sample` on a variant (False everywhere) | drops the column |
+| `store.0043_order_samples` | the `OrderSample` table and `CartOrder.sample_decision` (UNDECIDED) | drops both; ledger rows stay |
+| `inventory.0003_alter_stockmovement_kind` | adds `SAMPLE_OUT` to the choice list (no data change) | restores the old list |
+| `inventory.0004_reservation_sample` | `StockReservation.sample` (null everywhere) | drops the column |
+
+Back up first, then `python manage.py migrate`. Roll back Phase D only, **in this order**
+(`inventory.0004` depends on `store.0043`, which depends on `catalog.0008`):
+
+    python manage.py migrate inventory 0002
+    python manage.py migrate store 0042
+    python manage.py migrate catalog 0007
+
+Verified on a copy of the database: apply, roll back all four, re-apply, all clean;
+`makemigrations --check` reports no changes.
+
+### 5. ENV VARS ADDED
+
+None. One default changed: `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` is now `0` (was `30`). If your
+`backend/.env` sets it to 30, change it to 0 or delete the line (D10).
+
+### 6. TESTS ADDED
+
+`backend/tests/test_dispatch_samples.py`, 13 tests: the shipped shelf-life default is 0 (read
+in a fresh interpreter); only an expired batch is held back from allocation; Handle orders
+flags expired and undated batches, the date can be recorded from there, and an undated batch
+never stops the parcel; a batch that expires after allocation shows as Expired; samples are
+held, dispatched once as `SAMPLE_OUT`, never as a sale, and never change the total; a sample
+can be removed and its stock comes back, the same sample twice is refused, more than there are
+is refused, and a cancelled order takes none; cancelling releases sample holds; a sample is
+invisible in the shop, in the size picker, in the cart and in every customer-facing payload,
+while the owner's own view shows it; the report counts only customers who came back for that
+product; the expiry screen lists expired, due-soon and undated stock; writing off goes through
+the ledger, refuses held stock and a fractional quantity; batch lookup lists exactly the orders
+that got that batch, marking sample-only and not-yet-sent ones; every endpoint is staff only.
+
+Shown failing first against `5a68534`: collection error
+(`ImportError: cannot import name 'SAMPLE_ADDED' from 'store.models'`). The sale/sample fix
+(D2) was additionally proven load-bearing by removing it: 2 tests fail with `SALE_OUT` where
+`SAMPLE_OUT` is expected, and pass again when it is restored.
+
+    python -m pytest tests/test_dispatch_samples.py -q  ->  13 passed
+    python -m pytest -q                                 ->  239 passed, 2 skipped (SQLite)
+    $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
+    python -m pytest -q                                 ->  241 passed (PostgreSQL 16)
+
+Playwright, `frontend/e2e/owner.spec.js`, 3 tests: the owner adds a "5 g sample" size with the
+Sample tick (the price fills itself with 0), gives it stock, confirms it is absent from the
+shop and the size picker; a customer orders the Face Scrub; the owner sees the packing batch,
+adds 2 samples, is refused a duplicate, records a use-by date, ships it, and the customer's own
+pages never contain the word "sample"; undated stock is listed on Stock & expiry, two units are
+written off, and the recall lookup finds the batch and reports an unknown code; the samples
+report shows 1 given and 0 converted. Shown failing first against `5a68534`: 1 failed (no
+Sample tick on the sizes form), the rest of the serial block not run.
+
+    npm run build          ->  built
+    npx playwright test    ->  28 passed
+
+### 7. MANUAL VERIFICATION STEPS
+
+Back up, migrate (section 4), `python -m pytest -q`, `npm run build`, run both servers, then:
+
+1. Admin → Products → **Sizes & stock** on any product. Add a small size, tick **Sample**, save. It appears with a blue **Sample** badge. Give it stock.
+2. Open the shop: that size is not in the picker and not in the listing.
+3. Admin → Orders → open a live order. **Packing** shows the batch each line comes from; type a use-by date if one is missing.
+4. **Gift samples**: choose the sample, Add to parcel. The order total does not move.
+5. Open that order as the customer (My orders): no mention of a sample anywhere.
+6. Ship the order. Django admin → Inventory → Stock movements: one `SAMPLE_OUT` row, no `SALE_OUT` for the sample.
+7. Admin → **Stock & expiry**: write off a couple of units with a reason; the on-hand figure drops. Paste a batch code into **Find a batch**: the orders that got it are listed.
+8. Admin → **Samples**: the sample shows 1 order given. Buy that product again with the same email, and it shows as converted.
+
+### 8. ASSUMPTIONS MADE (exhaustive)
+
+1. Decisions D1-D10.
+2. A sample is one row per (order, variant); to change the quantity, remove it and add it again.
+3. Samples cannot be changed once the order has been shipped, arrived or delivered.
+4. A sample's price is stored as 0; nothing reads it, because `quote()` never sees a sample.
+5. "Later" in the report means a strictly later order date; two orders placed the same second do not count as a conversion.
+6. The report is computed on request, not stored. At this size that is a handful of queries.
+7. Writing off uses the `MANUAL` channel and the `DAMAGE_OUT` kind, as the existing ledger defines them.
+8. Batch lookup matches the code exactly first, then as "contains" when exactly one batch matches.
+9. A batch whose use-by date is **today** is not allocated (the rule is "date in the future"), although the screens call it expired only once the date has passed. Shipping a cosmetic on its last day should not happen silently.
+10. The expiry screen reads the whole batch table; with a home-scale catalogue that is cheap.
+
+### 9. KNOWN GAPS
+
+- **No packing slip.** The samples in a parcel are on screen only; there is nothing to print yet. The owner reads them off the order while packing.
+- The legacy dashboard screens (old Orders, Earnings) know nothing about samples; the Handle orders screen is the one to use.
+- No low-stock alert for samples: the owner sees "N left" in the picker when adding one.
+- The samples report has no date range; it covers everything since the first sample went out.
+- A sample whose stock has run out is shown in the picker but cannot be chosen.
+- `EXPIRY_ALERT_DAYS` (45) is still only settable in the environment, not on the Store settings screen.
+- The admin area's sidebar is getting long; it has not been reorganised.
+
+### 10. NOT DONE AND WHY
+
+- Kits from component stock: phase E.
+- Customer support queries: phase F.
+- Automatic expiry emails to the owner: the alert data exists (`batches_nearing_expiry`), but delivering it needs the email provider decision from G5 part B.
+- Printing a packing slip: not in the roadmap for this phase.
+
+---
+
+## Phase C decisions (11 Oct 2026)
+
+What customers are charged changes in this phase: approved in writing by the owner (Q9, ROADMAP C).
+
+| # | Question | Decision | Why | Cost to reverse |
+|---|---|---|---|---|
+| C1 | When a draft picks up new shipping settings | When the checkout page opens, the server re-prices the unpaid draft (`POST payments/quote/<oid>/`) and stores the online price. What the page shows, what the order stores and what Razorpay is asked for are then the same number | "A threshold edited in the admin area applies on the next quote" without ever charging a number that was not shown | Low |
+| C2 | How the COD fee gets onto an order | Only when the order is placed as COD, in the same transaction (`PlaceCodOrderView`): re-price with `payment_method="COD"`, store, place. The browser sends the total it showed (`expected_total_paise`); if the server's figure differs, nothing is placed and the new figures come back (409) | CLAUDE.md section 8: no fee the customer did not see. The client total is only compared, never used as money | Low |
+| C3 | Razorpay and the fee | A draft never carries the fee, and starting a Razorpay payment is refused for any order that does | "A Razorpay order is always created from the non-COD quote" | One check |
+| C4 | A coupon that stopped being valid between cart and checkout | Re-pricing re-checks it like any quote: it is dropped and the page shows the new total | Same rule as the cart; nothing is charged that was not shown | Low |
+| C5 | `initial_total` on an order | subtotal + shipping + COD fee, so `initial_total - saved = total` still holds | Keeps the G1 column meaning consistent | One line |
+| C6 | Settings that contradict themselves | Refused with a message: shipping on at ₹0, free shipping on with no amount, the COD fee on at ₹0. Switching a feature off needs no amount | The owner should never save a setting that quietly does nothing | Low |
+| C7 | Copy that states shipping or COD terms | Built from the live settings in one helper (`frontend/src/utils/shippingText.js`): announcement bar, home page tiles, product page line, cart, shipping policy (now with a Cash on Delivery section). The cart also says what COD adds, before checkout | One true sentence everywhere; drip pricing ruled out | Low |
+| C8 | Where the label details (Phase B) are edited | The new Store settings screen, alongside shipping and COD (closes a Phase B known gap) | No Django admin needed for day-to-day settings | n/a |
+| C9 | Where the owner endpoint lives | New `backend/store/owner_settings.py` | Same reason as B2 | Move the class |
+
+---
+
+## PHASE C — Owner-set shipping and COD fee (COMPLETED)
+
+### 1. PHASE COMPLETED
+
+**Phase C**, branch `phase/C-shipping-cod`, built on Phase B `3b4a18c`.
+
+- **Admin → Store settings** (sidebar, under More): charge shipping or not, the shipping charge,
+  free shipping on or off and its threshold, offer Cash on Delivery or not, a COD fee on or off
+  and its amount, plus the product-information label details. Audited as `settings.updated`.
+- **`quote()` knows the payment method.** `total = subtotal - discount + shipping + COD fee`.
+  The fee only applies to COD with the fee on; coupons never discount it; it never counts
+  towards free shipping. Shipping off means free; free shipping off means always charged.
+- **Checkout** shows "Cash on delivery (+ ₹49 fee)". Choosing it switches the summary to the
+  COD figures (fee row, new total) before "Place order"; "Pay ₹X" online never includes it.
+- **Placing COD** stores the fee on the order (`CartOrder.cod_fee_paise`) and refuses if the
+  total is not the one the customer saw.
+- **Order pages and emails** show a "Cash on Delivery fee" row when one was charged
+  (confirmation page, customer order page, owner order page, order emails).
+- **Placed orders never change** when settings change.
+- **COD switched off** by the owner: not offered at checkout and refused by the API.
+
+### 2. FILES CREATED
+
+- `backend/addon/migrations/0007_shipping_cod_settings.py`
+- `backend/store/migrations/0042_cartorder_cod_fee_paise.py`
+- `backend/store/owner_settings.py`
+- `backend/tests/test_pricing_c.py`
+- `frontend/src/views/owner/OwnerSettings.jsx`
+- `frontend/src/utils/shippingText.js`
+
+### 3. FILES MODIFIED
+
+- Backend: `addon/models.py` (five settings), `store/models.py` (`CartOrder.cod_fee_paise`), `store/pricing.py` (`payment_method`, switches, `order_lines`, `quote_order`, fee stored by `apply_quote_to_order`), `store/payment_views.py` (`CheckoutQuoteView`, COD placement re-prices with the guard, Razorpay guard, `cod_fee_paise` in payment methods, COD respects the owner switch), `store/emails.py`, `templates/email/order_update.txt`, `order_update.html`, `api/urls.py` (`payments/quote/<oid>/`, `owner/settings/`), `tests/test_payments.py` (one expectation: the payment-methods answer gained `cod_fee_paise`)
+- Frontend: `src/App.jsx`, `src/views/vendor/Sidebar.jsx`, `src/views/shop/Checkout.jsx`, `Cart.jsx`, `OrderConfirmation.jsx`, `ProductDetail.jsx`, `home.jsx`, `src/views/customer/OrderDetail.jsx`, `src/views/owner/OwnerOrderDetail.jsx`, `src/views/base/StoreHeader.jsx`, `src/views/policy/PolicyPage.jsx`, `policies.js`, `e2e/checkout.spec.js`, `playwright.config.js`
+- Docs: `docs/BUILD_LOG.md`
+
+New endpoints: `POST /api/v1/payments/quote/<order_oid>/` (public, order capability as for
+checkout), `GET`/`PATCH /api/v1/owner/settings/` (staff only). Nothing removed or renamed.
+
+### 4. MIGRATIONS ADDED
+
+| Migration | What | Reverse |
+|---|---|---|
+| `addon.0007_shipping_cod_settings` | `shipping_enabled`, `free_shipping_enabled`, `cod_enabled` (all default on), `cod_fee_enabled` (off), `cod_fee_paise` (0): today's behaviour exactly | drops the five columns |
+| `store.0042_cartorder_cod_fee_paise` | `CartOrder.cod_fee_paise` (default 0, paise only) | drops the column |
+
+Back up first, then `python manage.py migrate`. Roll back Phase C only:
+
+    python manage.py migrate store 0041
+    python manage.py migrate addon 0006
+
+Verified on a copy of the database: apply, roll back both, re-apply, all clean;
+`makemigrations --check` reports no changes.
+
+### 5. ENV VARS ADDED
+
+None.
+
+### 6. TESTS ADDED
+
+`backend/tests/test_pricing_c.py`, 9 tests: fee off, COD costs the same; fee on, added only for
+COD, never discounted (a 100% coupon leaves shipping and fee), never counted towards free
+shipping, nothing on an empty quote; shipping off is free and free shipping off always charges,
+with no nudge; checkout re-prices the draft with an edited threshold, shows both totals,
+audits `order.repriced`, and drops COD when the owner switches it off; placing COD stores the
+fee, mirrors pass, `initial_total - saved = total`, Razorpay refuses that order, the online
+order's Razorpay amount has no fee, the email shows the fee row; a COD placement with a total
+the customer did not see is refused with nothing changed, a float total is refused, a client
+`total_paise` is ignored; a placed order keeps its figures when every setting changes; COD off
+is neither offered nor accepted; the settings endpoint is staff only (401/403), refuses floats,
+negative amounts and contradictory switches, saves paise, audits with the actor, and the public
+`addon/` follows.
+
+Shown failing first against `3b4a18c`: collection error
+(`ImportError: cannot import name 'quote_order' from 'store.pricing'`).
+
+    python -m pytest tests/test_pricing_c.py -q   ->  9 passed
+    python -m pytest -q                           ->  226 passed, 2 skipped (SQLite)
+    $env:DATABASE_URL = "postgres://ecom:ecom@127.0.0.1:5432/ecom"
+    python -m pytest -q                           ->  228 passed (PostgreSQL 16)
+
+Playwright, `frontend/e2e/checkout.spec.js` gains one test: the owner switches the ₹49 fee on in
+Store settings; a guest's cart says COD adds ₹49; checkout shows "(+ ₹49 fee)", ₹528 online,
+then ₹49 and ₹577 once COD is chosen; the confirmation page shows the fee and ₹577; with
+shipping switched off the announcement, home page and shipping policy all say so. The test
+restores the default settings through the API in a `finally`. Shown failing first against
+`3b4a18c`: 1 failed (no Store settings screen), the 3 existing checkout tests passed.
+
+    npm run build          ->  built
+    npx playwright test    ->  25 passed
+
+### 7. MANUAL VERIFICATION STEPS
+
+Back up, migrate (section 4), `python -m pytest -q`, `npm run build`, run both servers, then:
+
+1. Admin → **Store settings**: switch on "Charge a Cash on Delivery fee", type 49, save. The line under the form says "Cash on Delivery with a ₹49 fee".
+2. As a shopper add Face Serum 30 ml: the cart says "Paying by Cash on Delivery adds a ₹49 fee".
+3. Checkout: "Cash on delivery (+ ₹49 fee)"; online total ₹528; pick COD: fee row ₹49, total ₹577. Place the order: the confirmation and the order email show the fee.
+4. Admin → Handle orders → that order: "Includes Cash on Delivery fee ₹49".
+5. Store settings: switch shipping off. The top bar says "Free shipping on every order"; a new cart shows shipping Free.
+6. Change the fee to 99: the order from step 3 still shows ₹577.
+7. Switch everything back (shipping on ₹79, free from ₹999, fee off).
+
+### 8. ASSUMPTIONS MADE (exhaustive)
+
+1. Decisions C1-C9.
+2. The fee is one flat amount per COD order, whatever the order size.
+3. Tax (rate 0 today) is carved out of the whole total, COD fee included, as with shipping (E12).
+4. Turning the fee off and COD off are independent: with COD off, the fee setting is kept but never charged.
+5. "Placed" means payment status no longer `initiated`/`processing`; only drafts are re-priced.
+6. The legacy Stripe path is switched off and was not taught about the fee (it would charge the stored online total).
+7. Settings changes take effect for the next quote; a customer already on the checkout page is protected by C2 (COD) and by the stored total (online).
+
+### 9. KNOWN GAPS
+
+- The legacy dashboard screens (old Orders, Earnings) do not show the COD fee separately; it is inside the order total. The Handle orders screen shows it.
+- Revenue reports do not split COD fees from goods.
+- The tax rate is still set only in Django admin (it stays 0 until L2 is answered).
+- The Playwright test changes store-wide settings and restores them in a `finally`; if the suite is killed mid-test, run it again (the database is recreated on every run).
+- Admin help texts in `text-muted` remain low contrast in other admin screens (two on Store settings were switched to the theme's `text-subtle`).
+
+### 10b. FOLLOW-UP (11 Oct 2026): a flaky guest account-link step
+
+Reported by the owner: one browser test failed, "G3: a guest places a Cash on Delivery order
+end to end and can ask for an account link".
+
+Cause: the suite's Django server raises `THROTTLE_AUTH` and `THROTTLE_CHECKOUT` to 1000/min but
+never `THROTTLE_OTP`, whose real limit is **5 a minute**. "Email me the link"
+(`account/invite/`) is on that scope, along with password reset and the account-claim link. Any
+run that reaches it more than five times a minute gets a 429, and the step fails for a reason
+that has nothing to do with the store.
+
+Reproduced here with `npx playwright test e2e/checkout.spec.js --grep "a guest places"
+--repeat-each=6`: runs 1-5 passed, run 6 failed exactly as reported. With `THROTTLE_OTP` added
+to `playwright.config.js`, the same command gives 6 passed, and the whole suite is 25 passed.
+
+This is a test-harness limit only. The real store keeps its 5-a-minute limit on those
+endpoints, which is what stops someone using them to send mail to an address repeatedly.
+
+If a single full run still fails that test on your machine, it is a different cause and I need
+the error block from the terminal (or `frontend/test-results/.../error-context.md`).
+
+### 10. NOT DONE AND WHY
+
+- Weight-based shipping (ranked for later, item 5).
+- Showing the COD fee on the legacy dashboard screens: they are being retired, not extended.
+- Dispatch checks, samples, batch lookup, `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` to 0: phase D.
+
+---
+
 ## Phase B decisions (11 Oct 2026)
 
 | # | Question | Decision | Why | Cost to reverse |

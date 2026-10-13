@@ -66,6 +66,18 @@ const OwnerOrderDetail = lazyPage(() => import('./views/owner/OwnerOrderDetail')
 const OwnerReviews = lazyPage(() => import('./views/owner/OwnerReviews'));
 const OwnerProduct = lazyPage(() => import('./views/owner/OwnerProduct'));
 const OwnerCategories = lazyPage(() => import('./views/owner/OwnerCategories'));
+const OwnerSettings = lazyPage(() => import('./views/owner/OwnerSettings'));
+const OwnerExpiry = lazyPage(() => import('./views/owner/OwnerExpiry'));
+const OwnerKits = lazyPage(() => import('./views/owner/OwnerKits'));
+const OwnerSupport = lazyPage(() => import('./views/owner/OwnerSupport'));
+
+// Customer support (phase F). A shopper only reaches these after something has gone wrong, so
+// they are fetched when needed rather than in the storefront's own download.
+const SupportNewQuery = lazyPage(() => import('./views/support/NewQuery'));
+const SupportThread = lazyPage(() => import('./views/support/Thread'));
+const SupportMyQueries = lazyPage(() => import('./views/support/MyQueries'));
+const SupportFindThread = lazyPage(() => import('./views/support/FindThread'));
+const OwnerSamples = lazyPage(() => import('./views/owner/OwnerSamples'));
 const ShopNotReady = lazyPage(() => import('./views/owner/ShopNotReady'));
 
 // Shown for the moment a lazily-loaded page is being fetched.
@@ -206,6 +218,14 @@ function App() {
                             <Route path="/customer/orders/" element={<PrivateRoute><Orders /></PrivateRoute>} />
                             <Route path="/customer/order/detail/:order_oid/" element={<PrivateRoute><OrderDetail /></PrivateRoute>} />
 
+                            {/* Support (phase F). Open to guests: reporting a problem must not
+                                need an account, and a guest's thread is reached by its signed link. */}
+                            <Route path="/support/new" element={<SupportNewQuery />} />
+                            <Route path="/support/find" element={<SupportFindThread />} />
+                            <Route path="/support/thread" element={<SupportThread />} />
+                            <Route path="/support/thread/:ref" element={<SupportThread />} />
+                            <Route path="/support/mine" element={<PrivateRoute><SupportMyQueries /></PrivateRoute>} />
+
                             <Route path="*" element={<NotFound />} />
                         </Route>
 
@@ -241,6 +261,12 @@ function App() {
                             <Route path="owner/reviews/" element={<OwnerReviews />} />
                             <Route path="owner/products/:pid/" element={<OwnerProduct />} />
                             <Route path="owner/categories/" element={<OwnerCategories />} />
+                            <Route path="owner/settings/" element={<OwnerSettings />} />
+                            <Route path="owner/expiry/" element={<OwnerExpiry />} />
+                            <Route path="owner/kits/" element={<OwnerKits />} />
+                            <Route path="owner/support/" element={<OwnerSupport />} />
+                            <Route path="owner/support/:ref/" element={<OwnerSupport />} />
+                            <Route path="owner/samples/" element={<OwnerSamples />} />
                             <Route path="*" element={<NotFound />} />
                         </Route>
 

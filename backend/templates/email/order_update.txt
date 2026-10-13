@@ -13,7 +13,8 @@ Order {{ order.oid }}
 {% endfor %}
 Subtotal: {{ subtotal }}{% if discount %}
 Discount{% if coupon_code %} ({{ coupon_code }}){% endif %}: -{{ discount }}{% endif %}
-Shipping: {{ shipping }}
+Shipping: {{ shipping }}{% if cod_fee %}
+Cash on Delivery fee: {{ cod_fee }}{% endif %}
 Total: {{ total }} (inclusive of all taxes){% if is_cod %}
 Payment: Cash on Delivery{% endif %}
 

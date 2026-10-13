@@ -1,0 +1,14 @@
+{{ store_name }}
+
+Hello{% if greeting_name %} {{ greeting_name }}{% endif %},
+
+{{ intro }}
+
+Reference: {{ reference }}
+Subject: {{ subject_line }}
+{% if action_url %}
+{{ action_label }}: {{ action_url }}
+{% if link_hours %}This link works for {{ link_hours }} hours.{% endif %}
+{% endif %}
+Thank you,
+{{ store_name }}

@@ -49,6 +49,15 @@ class ProductVariant(models.Model):
     # Perishable variants require a best_before on every batch and show it on the product page.
     perishable = models.BooleanField(default=False)
 
+    # A sample size given away with orders (Phase D, Ayura). It has its own SKU and its own stock
+    # in the ledger, is never shown in the shop or the size picker, and is never charged for.
+    is_sample = models.BooleanField(default=False)
+
+    # A kit sold as one item but made up of other variants (Phase E, Ayura). A kit has no stock
+    # of its own: what it can sell is decided by its components, and buying one holds theirs.
+    # A kit is never a component of another kit, and never a sample (ROADMAP Z7).
+    is_kit = models.BooleanField(default=False)
+
     is_default = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
 
@@ -74,10 +83,56 @@ class ProductVariant(models.Model):
         return ""
 
     @property
+    def sellable(self):
+        """True when a shopper may see and buy this variant."""
+        return self.active and not self.is_sample
+
+    def kit_parts(self):
+        """What is inside this kit, in a stable order. Empty for anything that is not a kit."""
+        if not self.is_kit:
+            return []
+        return list(
+            KitComponent.objects.filter(kit_variant=self)
+            .select_related("component_variant", "component_variant__product")
+            .order_by("id")
+        )
+
+    @property
     def available_qty(self):
         from inventory.services import available_qty
 
         return available_qty(self)
+
+
+class KitComponent(models.Model):
+    """
+    One part of a kit: `qty` units of `component_variant` go into every `kit_variant` sold
+    (Phase E, Ayura).
+
+    A kit holds no stock itself. Its availability is the scarcest of its components
+    (`inventory.services.kit_available_qty`), and selling one holds every component's stock
+    through the ledger, all or nothing.
+
+    The kit's price is whatever the owner set on the kit variant: it is never added up from
+    the components (ROADMAP Z7), so a kit can be cheaper than its parts.
+    """
+
+    kit_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="kit_components")
+    component_variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="part_of_kits")
+    qty = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["kit_variant_id", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["kit_variant", "component_variant"],
+                                    name="catalog_kitcomponent_kit_component_uniq"),
+            models.CheckConstraint(check=~models.Q(kit_variant=models.F("component_variant")),
+                                   name="catalog_kitcomponent_not_itself"),
+        ]
+
+    def __str__(self):
+        return f"{self.qty} x {self.component_variant.sku} in {self.kit_variant.sku}"
 
 
 class PriceHistory(AppendOnlyModel):

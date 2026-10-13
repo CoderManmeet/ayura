@@ -79,12 +79,14 @@ class ProductVariantSerializer(SafeDepthModelSerializer):
     # `strikethrough` is {compare_at_paise, percent_off, basis} or null.
     stock = serializers.SerializerMethodField()
     strikethrough = serializers.SerializerMethodField()
+    # What is inside a kit, for the product page (Phase E). Empty for everything else.
+    kit_contents = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductVariant
         fields = ["id", "sku", "name", "size", "color", "options", "weight_grams", "net_quantity",
                   "net_quantity_unit", "price_paise", "price", "mrp_paise", "mrp", "perishable", "is_default",
-                  "active", "available_qty", "stock", "strikethrough", "best_before"]
+                  "active", "available_qty", "stock", "strikethrough", "best_before", "is_kit", "kit_contents"]
         read_only_fields = fields
 
     def get_available_qty(self, obj):
@@ -94,6 +96,20 @@ class ProductVariantSerializer(SafeDepthModelSerializer):
         if shared is not None and obj.pk in shared:
             return shared[obj.pk]
         return available_qty(obj)
+
+    def get_kit_contents(self, obj):
+        """What a kit is made of, in the owner's order. Never a price: the kit has its own."""
+        if not obj.is_kit:
+            return []
+        return [
+            {
+                "product": part.component_variant.product.title,
+                "variant": part.component_variant.name,
+                "net_quantity": part.component_variant.net_quantity_label,
+                "qty": part.qty,
+            }
+            for part in obj.kit_parts()
+        ]
 
     def get_stock(self, obj):
         from catalog.display import stock_status
@@ -223,7 +239,7 @@ class ProductSerializer(SafeDepthModelSerializer):
             return prefetched
         cached = getattr(obj, "_active_variants_cache", None)
         if cached is None:
-            cached = list(obj.variants.filter(active=True).order_by("-is_default", "price_paise", "id"))
+            cached = list(obj.variants.filter(active=True, is_sample=False).order_by("-is_default", "price_paise", "id"))
             obj._active_variants_cache = cached
         return cached
 
@@ -336,7 +352,11 @@ class CartOrderSerializer(SafeDepthModelSerializer):
 
     class Meta:
         model = CartOrder
-        fields = '__all__'
+        # Everything EXCEPT the owner's gift-sample decision. Free samples are a surprise: the
+        # customer is never told about them, on any page, in any email, or in any answer they
+        # can reach (ROADMAP Y19, Phase D). The owner's own screens use
+        # OwnerCartOrderSerializer below, which adds it back.
+        exclude = ('sample_decision',)
 
     def __init__(self, *args, **kwargs):
         super(CartOrderSerializer, self).__init__(*args, **kwargs)
@@ -348,6 +368,15 @@ class CartOrderSerializer(SafeDepthModelSerializer):
         else:
             # For other methods, set serialization depth to 3.
             self.Meta.depth = 3
+
+
+class OwnerCartOrderSerializer(CartOrderSerializer):
+    """The same order as the owner sees it, including the gift-sample decision (Phase D)."""
+
+    class Meta(CartOrderSerializer.Meta):
+        model = CartOrder
+        exclude = None
+        fields = '__all__'
 
 
 class VendorSerializer(SafeDepthModelSerializer):

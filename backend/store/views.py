@@ -32,7 +32,8 @@ from core.permissions import ensure_order_access, ensure_self_or_staff
 from core.phone import try_to_e164
 from catalog.models import ProductVariant
 from inventory.models import ReservationStatus, StockReservation
-from inventory.services import InsufficientStock, attach_reservations_to_order, reserve
+from inventory.services import (InsufficientStock, attach_reservations_to_order, release_cart_line,
+                                reserve, reserve_kit)
 from core.money import from_paise
 from store.money_mirror import set_money
 from store import payments
@@ -75,7 +76,8 @@ def resolve_variant(product, size=None, color=None):
     The storefront still posts free-text size/colour, so match on those first and fall back
     to the product's default variant. Every product has a default variant after the F-B backfill.
     """
-    variants = list(ProductVariant.objects.filter(product=product, active=True))
+    # Samples are never sellable: they can only be added to an order by the owner (Phase D).
+    variants = list(ProductVariant.objects.filter(product=product, active=True, is_sample=False))
     if not variants:
         return None
     size = (size or "").strip()
@@ -157,7 +159,8 @@ class CatalogueListMixin:
                 _order_count=Count("order_item", filter=Q(order_item__order__payment_status="paid"), distinct=True),
             )
             .prefetch_related(
-                Prefetch("variants", queryset=ProductVariant.objects.filter(active=True)
+                # `is_sample=False`: a giveaway sample is never part of the shop (Phase D).
+                Prefetch("variants", queryset=ProductVariant.objects.filter(active=True, is_sample=False)
                          .order_by("-is_default", "price_paise", "id"), to_attr="_prefetched_active_variants"),
                 "gallery_set", "specification_set", "size_set", "color_set",
             )
@@ -227,7 +230,7 @@ class ProductDetailView(generics.RetrieveAPIView):
         from catalog.models import ProductVariant
 
         queryset = Product.objects.select_related("vendor", "vendor__user", "category").prefetch_related(
-            Prefetch("variants", queryset=ProductVariant.objects.filter(active=True)
+            Prefetch("variants", queryset=ProductVariant.objects.filter(active=True, is_sample=False)
                      .order_by("-is_default", "price_paise", "id"), to_attr="_prefetched_active_variants"),
             "gallery_set", "specification_set", "size_set", "color_set",
         )
@@ -284,7 +287,8 @@ class CartApiView(generics.ListCreateAPIView):
         if variant_id not in (None, "", "undefined", "null"):
             # The storefront's variant picker sends the exact sellable unit.
             try:
-                variant = ProductVariant.objects.filter(pk=int(variant_id), product=product, active=True).first()
+                variant = ProductVariant.objects.filter(pk=int(variant_id), product=product,
+                                                        active=True, is_sample=False).first()
             except (TypeError, ValueError):
                 variant = None
             if variant is None:
@@ -349,22 +353,20 @@ def put_in_cart(cart_id, user, product, variant, qty, country=None, size=None, c
 
     # Hold the stock. Existing holds for this cart line are released first so that
     # changing the quantity re-reserves the new amount rather than stacking holds.
+    # A kit holds its components instead, all or nothing (Phase E, Ayura).
     with transaction.atomic():
         _release_cart_line(cart_id, variant)
-        reserve(variant, qty, cart_id=cart_id)
+        if variant.is_kit:
+            reserve_kit(variant, qty, cart_id=cart_id)
+        else:
+            reserve(variant, qty, cart_id=cart_id)
         cart.save()
     return cart, created
 
 
 def _release_cart_line(cart_id, variant):
-    """Release only this cart's holds for one variant."""
-    from inventory.services import release
-
-    holds = list(StockReservation.objects.filter(
-        cart_id=cart_id, variant=variant, status=ReservationStatus.ACTIVE
-    ))
-    if holds:
-        release(holds, reason="cart line replaced")
+    """Release only this cart's holds for one line (kit-aware; see inventory.services)."""
+    return release_cart_line(cart_id, variant)
 
 
 def _cart_queryset_for(request, cart_id, user_id, include_all_user_carts):

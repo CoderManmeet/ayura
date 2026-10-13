@@ -22,12 +22,15 @@ class MovementKind(models.TextChoices):
     RETURN_IN = "RETURN_IN", "Customer return in"
     RTO_IN = "RTO_IN", "RTO in"
     DAMAGE_OUT = "DAMAGE_OUT", "Damage / write-off out"
+    # A free sample sent with an order (Phase D, Ayura). Separate from SALE_OUT so the stock
+    # that left as a gift is never counted as a sale in any report.
+    SAMPLE_OUT = "SAMPLE_OUT", "Free sample out"
     ADJUSTMENT = "ADJUSTMENT", "Manual adjustment"
 
 
 # Kinds that must increase stock, and kinds that must decrease it.
 INBOUND_KINDS = {MovementKind.PRODUCTION_IN, MovementKind.RETURN_IN, MovementKind.RTO_IN}
-OUTBOUND_KINDS = {MovementKind.SALE_OUT, MovementKind.DAMAGE_OUT}
+OUTBOUND_KINDS = {MovementKind.SALE_OUT, MovementKind.DAMAGE_OUT, MovementKind.SAMPLE_OUT}
 # ADJUSTMENT may be either sign.
 
 
@@ -131,6 +134,21 @@ class StockReservation(models.Model):
     )
     order_item = models.ForeignKey(
         "store.CartOrderItem", on_delete=models.SET_NULL, null=True, blank=True, related_name="stock_reservations"
+    )
+    # Set when this hold is for a free sample going out with the order (Phase D, Ayura), rather
+    # than for a line the customer bought. `order` is set as well, so cancelling an order still
+    # releases its samples.
+    sample = models.ForeignKey(
+        "store.OrderSample", on_delete=models.SET_NULL, null=True, blank=True, related_name="stock_reservations"
+    )
+
+    # Set when this hold is a COMPONENT held because a kit was bought (Phase E, Ayura). The
+    # hold itself is on the component variant, because that is the stock that physically moves;
+    # this says which kit line it belongs to, so the right holds are released when that line
+    # changes and the order line can be matched back to the kit.
+    kit_variant = models.ForeignKey(
+        "catalog.ProductVariant", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="kit_reservations",
     )
 
     expires_at = models.DateTimeField(db_index=True)

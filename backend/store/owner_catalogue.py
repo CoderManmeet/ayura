@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 BENEFIT_LINE_MAX = 120
 VARIANT_AUDIT_FIELDS = ("name", "options", "net_quantity", "net_quantity_unit", "price_paise", "mrp_paise",
-                        "weight_grams", "is_default", "active")
+                        "weight_grams", "is_default", "active", "is_sample", "is_kit")
 DETAIL_FIELDS = ("category", "benefit_line", "ingredients", "how_to_use", "cautions")
 UNIT_VALUES = {value for value, _label in NET_QUANTITY_UNITS}
 
@@ -164,6 +164,10 @@ def _variant_payload(variant, available, today):
         "options": variant.options,
         "net_quantity": variant.net_quantity,
         "net_quantity_unit": variant.net_quantity_unit,
+        # Phase D: a sample is given away with orders and never appears in the shop.
+        "is_sample": variant.is_sample,
+        # Phase E: a kit is sold as one item and draws its stock from its components.
+        "is_kit": variant.is_kit,
         "price_paise": int(variant.price_paise),
         "mrp_paise": int(variant.mrp_paise) if variant.mrp_paise is not None else None,
         "weight_grams": variant.weight_grams,
@@ -342,6 +346,14 @@ def _apply_variant_fields(variant, data, creating):
         variant.net_quantity_unit = unit
     if creating or "weight_grams" in data:
         variant.weight_grams = _positive_int(data.get("weight_grams"), "Shipping weight")
+    if creating or "is_sample" in data:
+        variant.is_sample = _bool(data.get("is_sample"))
+    if creating or "is_kit" in data:
+        variant.is_kit = _bool(data.get("is_kit"))
+    if variant.is_sample and variant.is_default:
+        raise OwnerInputError("A sample cannot be the product's main size.")
+    if variant.is_sample and variant.is_kit:
+        raise OwnerInputError("A size is either a kit or a sample, not both.")
     if "sku" in data and str(data.get("sku") or "").strip():
         sku = _text(data, "sku", max_length=64)
         if ProductVariant.objects.filter(sku=sku).exclude(pk=variant.pk).exists():
@@ -360,12 +372,23 @@ class OwnerVariantCreateView(APIView):
 
     def post(self, request, pid, *args, **kwargs):
         product = get_object_or_404(Product, pid=pid)
+        wants_sample = _bool(request.data.get("is_sample", False))
+        # A kit draws its stock from other sizes (Phase E), so like a sample it is never the
+        # product's main size and never takes over the placeholder, which may hold the opening
+        # stock typed when the product was made.
+        wants_kit = _bool(request.data.get("is_kit", False))
+        stands_alone = wants_sample or wants_kit
         with transaction.atomic():
             variants = list(ProductVariant.objects.select_for_update().filter(product=product))
+            if wants_sample and not any(not v.is_sample for v in variants):
+                return _error("Add a size people can buy before adding a sample of it.")
             placeholder = None
-            if len(variants) == 1 and variants[0].name == "Default" and not variants[0].options:
+            if not stands_alone and len(variants) == 1 and variants[0].name == "Default" and not variants[0].options:
                 placeholder = variants[0]
-            variant = placeholder or ProductVariant(product=product, is_default=not variants, active=True)
+            # A kit is the main size only when it is the product's only one (a gift-set product);
+            # a sample never is, and the rule above means a sample is never the first size.
+            variant = placeholder or ProductVariant(
+                product=product, is_default=not variants and not wants_sample, active=True)
             before = snapshot(placeholder, VARIANT_AUDIT_FIELDS) if placeholder else None
             try:
                 _apply_variant_fields(variant, request.data, creating=True)
@@ -398,6 +421,8 @@ class OwnerVariantDetailView(APIView):
             try:
                 _apply_variant_fields(variant, request.data, creating=False)
                 make_default = _bool(request.data.get("make_default", False))
+                if make_default and variant.is_sample:
+                    raise OwnerInputError("A sample cannot be the product's main size.")
                 if "active" in request.data:
                     active = _bool(request.data.get("active"))
                     if not active and variant.is_default and not make_default:
@@ -445,6 +470,10 @@ class OwnerReceiveStockView(APIView):
 
     def post(self, request, variant_id, *args, **kwargs):
         variant = get_object_or_404(ProductVariant, pk=variant_id)
+        if variant.is_kit:
+            # A kit holds no stock of its own (Phase E): booking a batch against it would be a
+            # number nothing can ever sell. Make more of its components instead.
+            return _error("A kit has no stock of its own. Add stock to the sizes that go inside it.")
         data = request.data
         try:
             quantity = _positive_int(data.get("quantity"), "Quantity", required=True)

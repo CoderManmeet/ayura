@@ -155,7 +155,8 @@ def test_start_is_refused_when_not_configured_or_not_enabled(api, candle, settin
     settings.ENABLED_PAYMENT_PROVIDERS = ["cod"]
     assert api.post(f"{API}payments/razorpay/start/{order.oid}/").status_code == 403
     methods = api.get(f"{API}payments/methods/").json()
-    assert methods == {"razorpay": False, "razorpay_configured": False, "cod": True}
+    # Phase C added `cod_fee_paise` (0: the fee is off by default).
+    assert methods == {"razorpay": False, "razorpay_configured": False, "cod": True, "cod_fee_paise": 0}
 
 
 @pytest.mark.django_db

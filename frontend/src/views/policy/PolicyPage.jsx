@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import Addon from '../plugin/Addon';
 import { formatINR } from '../../utils/money';
+import { codSentence, shippingSentence } from '../../utils/shippingText';
 import { STORE_NAME, SUPPORT_EMAIL } from '../../utils/constants';
 import usePageTitle from '../../utils/usePageTitle';
 import { PageIntro } from '../ui/kit';
@@ -33,6 +34,9 @@ function PolicyPage() {
     const tokens = {
         '{shipping}': addon?.shipping_flat_paise != null ? formatINR(addon.shipping_flat_paise) : 'a flat charge',
         '{threshold}': addon?.free_shipping_threshold_paise != null ? formatINR(addon.free_shipping_threshold_paise) : 'the free-shipping amount',
+        // Whole sentences that follow the owner's shipping and Cash on Delivery switches (Phase C).
+        '{shipping_terms}': shippingSentence(addon) || 'The shipping charge is shown in the cart.',
+        '{cod_terms}': codSentence(addon),
         '{email}': SUPPORT_EMAIL,
         '{store}': STORE_NAME,
     };

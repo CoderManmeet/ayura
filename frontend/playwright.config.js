@@ -42,7 +42,7 @@ const DEPLOYED_URL = (process.env.E2E_BASE_URL || '').replace(/\/$/, '');
 
 export default defineConfig({
     testDir: './e2e',
-    testMatch: DEPLOYED_URL ? 'production.spec.js' : ['storefront.spec.js', 'checkout.spec.js', 'brand.spec.js', 'coldstart.spec.js', 'catalogue.spec.js'],
+    testMatch: DEPLOYED_URL ? 'production.spec.js' : ['storefront.spec.js', 'checkout.spec.js', 'brand.spec.js', 'coldstart.spec.js', 'catalogue.spec.js', 'owner.spec.js', 'kits.spec.js', 'support.spec.js'],
     timeout: 60_000,
     expect: { timeout: 10_000 },
     fullyParallel: false,
@@ -73,9 +73,14 @@ export default defineConfig({
                 DJANGO_EMAIL_BACKEND: 'django.core.mail.backends.locmem.EmailBackend',
                 LOG_LEVEL: 'WARNING',
                 ENABLED_PAYMENT_PROVIDERS: 'razorpay,cod',
-                // The suite signs in several times and checks out repeatedly; do not rate-limit it.
+                // The suite signs in several times, checks out repeatedly and asks for a guest
+                // account link; do not rate-limit it. THROTTLE_OTP covers the account-link and
+                // password-reset endpoints, whose real limit is 5 a minute: without it, running a
+                // test more than a few times (npx playwright test --repeat-each) makes the guest
+                // account-link step fail for a reason that has nothing to do with the store.
                 THROTTLE_AUTH: '1000/min',
                 THROTTLE_CHECKOUT: '1000/min',
+                THROTTLE_OTP: '1000/min',
             },
         },
         {

@@ -112,6 +112,8 @@ def build_order_email(order, kind):
         "discount": format_inr(int(order.saved_paise)) if order.saved_paise else "",
         "coupon_code": order.coupon_code,
         "shipping": format_inr(int(order.shipping_amount_paise)) if order.shipping_amount_paise else "Free",
+        # Phase C: the Cash on Delivery fee, shown only when one was charged.
+        "cod_fee": format_inr(int(order.cod_fee_paise)) if order.cod_fee_paise else "",
         "total": total,
         "is_cod": is_cod,
         "show_totals": kind != KIND_REVIEW_REQUEST,

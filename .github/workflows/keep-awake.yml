@@ -9,7 +9,7 @@
 # the second:
 #
 #   ping   needs nothing configured. It works the moment this file is in the repository.
-#   jobs   runs order emails, Razorpay reconciliation and checkout expiry. It needs the secret
+#   jobs   runs order and support emails, Razorpay reconciliation and checkout expiry. It needs the secret
 #          JOBS_RUN_TOKEN (the same value as the JOBS_RUN_TOKEN environment variable on Render).
 #          Without that secret it reports "not configured" and succeeds.
 #

@@ -1,10 +1,12 @@
 from django.urls import path
 from userauths import views as userauths_views
 from store import views as store_views
-from store import payment_views, owner_views, owner_catalogue
+from store import payment_views, owner_views, owner_catalogue, owner_dispatch, owner_kits, owner_settings
 from core.health import HealthView
 from core.jobs_api import RunJobsView
 from customer import views as customer_views
+from support import views as support_views
+from support import owner_views as support_owner_views
 from vendor import views as vendor_views
 
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -62,6 +64,8 @@ urlpatterns = [
     path('payments/razorpay/return/', payment_views.RazorpayReturnView.as_view(), name='razorpay-return'),
     path('payments/razorpay/webhook/', payment_views.RazorpayWebhookView.as_view(), name='razorpay-webhook'),
     path('payments/cod/<order_oid>/', payment_views.PlaceCodOrderView.as_view(), name='cod-place'),
+    # Both checkout totals (online and Cash on Delivery) for an order draft (Ayura phase C)
+    path('payments/quote/<order_oid>/', payment_views.CheckoutQuoteView.as_view(), name='checkout-quote'),
 
     # Guest account from an order (G3)
     path('account/invite/', payment_views.AccountInviteView.as_view(), name='account-invite'),
@@ -86,6 +90,36 @@ urlpatterns = [
     path('owner/variants/<int:variant_id>/', owner_catalogue.OwnerVariantDetailView.as_view(), name='owner-variant-detail'),
     path('owner/variants/<int:variant_id>/stock/', owner_catalogue.OwnerReceiveStockView.as_view(), name='owner-variant-stock'),
     path('owner/batches/<int:batch_id>/', owner_catalogue.OwnerBatchDetailView.as_view(), name='owner-batch-detail'),
+
+    # Owner (staff) store settings: shipping, Cash on Delivery and its fee, label details (Ayura phase C)
+    path('owner/settings/', owner_settings.OwnerSettingsView.as_view(), name='owner-settings'),
+
+    # Owner (staff) dispatch checks, gift samples, expiry and batch lookup (Ayura phase D)
+    path('owner/orders/<order_oid>/dispatch/', owner_dispatch.OwnerOrderDispatchView.as_view(), name='owner-order-dispatch'),
+    path('owner/orders/<order_oid>/samples/', owner_dispatch.OwnerOrderSamplesView.as_view(), name='owner-order-samples'),
+    path('owner/expiry/', owner_dispatch.OwnerExpiryView.as_view(), name='owner-expiry'),
+    path('owner/batches/<int:batch_id>/write-off/', owner_dispatch.OwnerBatchWriteOffView.as_view(), name='owner-batch-write-off'),
+    path('owner/batch-lookup/', owner_dispatch.OwnerBatchLookupView.as_view(), name='owner-batch-lookup'),
+    path('owner/samples-report/', owner_dispatch.OwnerSamplesReportView.as_view(), name='owner-samples-report'),
+
+    # Owner (staff) kit builder (Ayura phase E)
+    path('owner/kits/', owner_kits.OwnerKitListView.as_view(), name='owner-kits'),
+    path('owner/kits/<int:variant_id>/components/', owner_kits.OwnerKitComponentCreateView.as_view(), name='owner-kit-component-create'),
+    path('owner/kit-components/<int:component_id>/', owner_kits.OwnerKitComponentDetailView.as_view(), name='owner-kit-component-detail'),
+
+    # Customer support queries (Ayura phase F). Public by declaration: a guest must be able to
+    # report a problem without an account. Rate-limited under the `support` scope.
+    path('support/queries/', support_views.SupportQueryCreateView.as_view(), name='support-query-create'),
+    path('support/queries/mine/', support_views.SupportMyQueriesView.as_view(), name='support-my-queries'),
+    path('support/thread/', support_views.SupportThreadByLinkView.as_view(), name='support-thread-by-link'),
+    path('support/queries/<str:ref>/', support_views.SupportThreadView.as_view(), name='support-thread'),
+    path('support/find/', support_views.SupportFindView.as_view(), name='support-find'),
+    path('support/orders/<order_oid>/queries/', support_views.SupportOrderQueriesView.as_view(), name='support-order-queries'),
+
+    # Owner (staff) support inbox (Ayura phase F)
+    path('owner/support/', support_owner_views.OwnerSupportListView.as_view(), name='owner-support'),
+    path('owner/support/<str:ref>/', support_owner_views.OwnerSupportThreadView.as_view(), name='owner-support-thread'),
+    path('owner/support/<str:ref>/close/', support_owner_views.OwnerSupportCloseView.as_view(), name='owner-support-close'),
 
     # Customer API Endpoints
     path('customer/orders/<user_id>/', customer_views.OrdersAPIView.as_view(), name='customer-orders'),

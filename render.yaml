@@ -38,6 +38,13 @@ services:
         value: "Ayura"
       - key: WEB_CONCURRENCY
         value: "2"
+      # No email provider yet (ROADMAP G5 part B). The real default is Mailgun, and with no
+      # Mailgun keys every order and support email fails and is retried until it gives up; the
+      # dummy backend drops them quietly instead. The console backend must NOT be used online:
+      # it would write customers' emails and addresses into the Render logs.
+      # DELETE this variable once Mailgun is configured, or everything stays silently dropped.
+      - key: DJANGO_EMAIL_BACKEND
+        value: "django.core.mail.backends.dummy.EmailBackend"
       # --- you paste these in the dashboard ------------------------------------------------
       - key: DATABASE_URL                 # from Neon
         sync: false

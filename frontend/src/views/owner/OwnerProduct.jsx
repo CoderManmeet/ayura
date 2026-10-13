@@ -21,6 +21,9 @@ import Sidebar from '../vendor/Sidebar';
 
 const UNITS = [['ml', 'ml'], ['g', 'g']];
 
+// A checkbox reports `checked`; every other field reports `value`.
+const fieldValue = (event) => (event.target.type === 'checkbox' ? event.target.checked : event.target.value);
+
 // Integer paise -> the rupee text an owner would type ("44900" -> "449", "44950" -> "449.50").
 const paiseToRupeesText = (paise) => {
     if (paise === null || paise === undefined) return '';
@@ -149,7 +152,7 @@ function DetailsForm({ product, categories, onSaved }) {
 
 // -------------------------------------------------------------------------------------- sizes
 
-const emptySize = { label: '', net_quantity: '', net_quantity_unit: 'ml', price: '', mrp: '', weight_grams: '', sku: '' };
+const emptySize = { label: '', net_quantity: '', net_quantity_unit: 'ml', price: '', mrp: '', weight_grams: '', sku: '', is_sample: false, is_kit: false };
 
 function SizeFields({ values, onChange, prefix }) {
     const field = (name, label, props = {}) => (
@@ -174,6 +177,24 @@ function SizeFields({ values, onChange, prefix }) {
             {field('mrp', 'MRP (₹)', { inputMode: 'decimal' })}
             {field('weight_grams', 'Packed weight (g)', { inputMode: 'numeric', title: 'Weight with packaging, used for shipping' })}
             {field('sku', 'SKU (optional)', { title: 'Leave blank and one is made for you' })}
+            <div className="col-lg-2 mb-2">
+                <div className="form-check mt-4">
+                    <input className="form-check-input" type="checkbox" id={`${prefix}-is-sample`} name="is_sample"
+                        checked={Boolean(values.is_sample)} onChange={onChange} disabled={Boolean(values.is_kit)}
+                        data-testid={`${prefix}-is-sample`} />
+                    <label className="form-check-label" htmlFor={`${prefix}-is-sample`}>Sample</label>
+                </div>
+                <div className="form-text">Given away with orders. Never shown in the shop.</div>
+            </div>
+            <div className="col-lg-2 mb-2">
+                <div className="form-check mt-4">
+                    <input className="form-check-input" type="checkbox" id={`${prefix}-is-kit`} name="is_kit"
+                        checked={Boolean(values.is_kit)} onChange={onChange} disabled={Boolean(values.is_sample)}
+                        data-testid={`${prefix}-is-kit`} />
+                    <label className="form-check-label" htmlFor={`${prefix}-is-kit`}>Kit</label>
+                </div>
+                <div className="form-text">Made of other sizes. Say what goes in it on the <Link to="/admin-area/owner/kits/">Kits</Link> screen.</div>
+            </div>
         </div>
     );
 }
@@ -193,6 +214,8 @@ function SizeRow({ variant, onProduct }) {
             mrp: paiseToRupeesText(variant.mrp_paise),
             weight_grams: variant.weight_grams ?? '',
             sku: variant.sku || '',
+            is_sample: Boolean(variant.is_sample),
+            is_kit: Boolean(variant.is_kit),
         });
         setNotice(null);
         setEditing(true);
@@ -227,6 +250,8 @@ function SizeRow({ variant, onProduct }) {
                 <td>
                     {variant.name}
                     {variant.is_default && <span className="badge bg-success ms-2">Main</span>}
+                    {variant.is_sample && <span className="badge bg-info text-dark ms-2" data-testid="size-sample">Sample</span>}
+                    {variant.is_kit && <span className="badge bg-primary ms-2" data-testid="size-kit">Kit</span>}
                     {!variant.active && <span className="badge bg-secondary ms-2">Off</span>}
                     <div className="text-muted"><small>{variant.sku}</small></div>
                 </td>
@@ -254,7 +279,7 @@ function SizeRow({ variant, onProduct }) {
                         {editing &&
                             <form onSubmit={save}>
                                 <SizeFields values={values} prefix={`edit-${variant.id}`}
-                                    onChange={(event) => setValues({ ...values, [event.target.name]: event.target.value })} />
+                                    onChange={(event) => setValues({ ...values, [event.target.name]: fieldValue(event) })} />
                                 <button type="submit" className="btn btn-sm btn-primary me-2" disabled={busy}>Save size</button>
                                 <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setEditing(false)}>Cancel</button>
                             </form>
@@ -295,6 +320,11 @@ function SizesPanel({ product, onProduct }) {
                     Net quantity is what the pack contains, as on the label. Packed weight includes the
                     packaging and is used for shipping. A product made in the old form starts with one size
                     called "Default": the first size you add takes its place and keeps its stock.
+                    Tick <b>Sample</b> for a small size you give away with orders: it is never shown in the
+                    shop, never sold, and its stock is tracked like any other.
+                    Tick <b>Kit</b> for a size that is made of other sizes, at the price you set here; then say
+                    what goes in it on the <Link to="/admin-area/owner/kits/">Kits</Link> screen. A kit keeps no
+                    stock of its own. A size is either a kit or a sample, never both.
                 </small></p>
                 <div className="table-responsive">
                     <table className="table">
@@ -309,7 +339,12 @@ function SizesPanel({ product, onProduct }) {
                 <form onSubmit={add} className="mt-3" data-testid="add-size-form">
                     <h6>Add a size</h6>
                     <Notice notice={notice} />
-                    <SizeFields values={values} prefix="new-size" onChange={(event) => setValues({ ...values, [event.target.name]: event.target.value })} />
+                    <SizeFields values={values} prefix="new-size" onChange={(event) => {
+                        const next = { ...values, [event.target.name]: fieldValue(event) };
+                        // A sample is given away, so it starts at zero unless the owner says otherwise.
+                        if (event.target.name === 'is_sample' && event.target.checked && !next.price) next.price = '0';
+                        setValues(next);
+                    }} />
                     <button type="submit" className="btn btn-primary" disabled={busy} data-testid="add-size">{busy ? 'Adding...' : 'Add size'}</button>
                 </form>
             </div>
@@ -428,7 +463,14 @@ function StockPanel({ product, onProduct }) {
                 {product.variants.map((variant) => (
                     <div key={variant.id} className="mb-4" data-testid="stock-size" data-size={variant.name}>
                         <h6>{variant.name} <small className="text-muted">· {variant.available} available</small></h6>
-                        {variant.batches.length > 0 &&
+                        {variant.is_kit &&
+                            <p className="text-muted" data-testid="stock-kit-note"><small>
+                                This is a kit, so it has no stock of its own: the {variant.available} above is what
+                                its parts allow. Make more of whatever is holding it back — the
+                                <Link to="/admin-area/owner/kits/"> Kits</Link> screen says which.
+                            </small></p>
+                        }
+                        {!variant.is_kit && variant.batches.length > 0 &&
                             <div className="table-responsive">
                                 <table className="table">
                                     <thead><tr><th>Batch</th><th>Made on</th><th>Use by</th><th>Left</th></tr></thead>
@@ -438,7 +480,7 @@ function StockPanel({ product, onProduct }) {
                                 </table>
                             </div>
                         }
-                        <StockForm variant={variant} onProduct={onProduct} />
+                        {!variant.is_kit && <StockForm variant={variant} onProduct={onProduct} />}
                     </div>
                 ))}
             </div>

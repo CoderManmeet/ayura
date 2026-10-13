@@ -17,7 +17,22 @@ import os
 import dj_database_url
 
 env = Env()
-env.read_env()
+
+# Which .env file is loaded.
+#
+# Normally none is named and `read_env()` searches upward from this file, finding
+# `backend/.env`. Set DJANGO_ENV_FILE to load a DIFFERENT file instead, or point it at a file
+# that does not exist to load NO file at all and run on the shipped defaults.
+#
+# That second use is what lets a test prove what a fresh install really does: without it, the
+# developer's own `backend/.env` is always found (the search starts from this file's directory,
+# not the working directory), so a changed default could hide behind a local value forever.
+# See tests/test_dispatch_samples.py::test_the_shipped_shelf_life_default_is_zero_days.
+ENV_FILE = os.environ.get("DJANGO_ENV_FILE", "")
+if ENV_FILE:
+    env.read_env(ENV_FILE, recurse=False)
+else:
+    env.read_env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -64,6 +79,7 @@ INSTALLED_APPS = [
     'inventory',
     'userauths',
     'store',
+    'support',
     'vendor',
     'customer',
     'addon',
@@ -273,13 +289,27 @@ ACCOUNT_CLAIM_LINK_HOURS = env.int("ACCOUNT_CLAIM_LINK_HOURS", default=48)
 # Password reset links stay valid for this many minutes
 PASSWORD_RESET_TOKEN_MINUTES = env.int("PASSWORD_RESET_TOKEN_MINUTES", default=30)
 
+# Customer support (Phase F, Ayura)
+# How long the signed link to a support thread keeps working. A guest has no account, so this
+# link IS their way back into the conversation: 30 days by default, long enough for a damaged
+# parcel to be sorted out, short enough that an old forwarded email stops opening it.
+SUPPORT_LINK_HOURS = env.int("SUPPORT_LINK_HOURS", default=720)
+# Photos a customer may attach to one message, and the size of each.
+SUPPORT_MAX_PHOTOS_PER_MESSAGE = env.int("SUPPORT_MAX_PHOTOS_PER_MESSAGE", default=3)
+SUPPORT_PHOTO_MAX_MB = env.int("SUPPORT_PHOTO_MAX_MB", default=5)
+# Where to tell the owner a query came in. Empty (the default) sends no notification at all;
+# the inbox in the admin area is the system of record either way.
+SUPPORT_NOTIFY_EMAILS = [a.strip() for a in env.list("SUPPORT_NOTIFY_EMAILS", default=[]) if a.strip()]
+
 # Inventory
 # FEFO (first expiry first out) by default; FIFO is the alternative.
 STOCK_ALLOCATION_STRATEGY = env.str("STOCK_ALLOCATION_STRATEGY", default="FEFO")
 # Stock held for an in-progress checkout is released after this many minutes.
 STOCK_RESERVATION_TTL_MINUTES = env.int("STOCK_RESERVATION_TTL_MINUTES", default=30)
-# A batch expiring within this many days is never auto-allocated to a new order.
-MIN_SHELF_LIFE_ON_DISPATCH_DAYS = env.int("MIN_SHELF_LIFE_ON_DISPATCH_DAYS", default=30)
+# A batch expiring within this many days is never auto-allocated to a new order. Ayura's
+# default is 0 (ROADMAP Z1): an EXPIRED batch is never allocated, and nothing else is held
+# back, because the owner decides shelf life per batch and undated stock must still sell.
+MIN_SHELF_LIFE_ON_DISPATCH_DAYS = env.int("MIN_SHELF_LIFE_ON_DISPATCH_DAYS", default=0)
 # Owner alert horizon for batches approaching expiry.
 EXPIRY_ALERT_DAYS = env.int("EXPIRY_ALERT_DAYS", default=45)
 
@@ -333,6 +363,8 @@ REST_FRAMEWORK = {
         'checkout': env.str("THROTTLE_CHECKOUT", default="60/min"),
         'review': env.str("THROTTLE_REVIEW", default="10/min"),
         'webhook': env.str("THROTTLE_WEBHOOK", default="600/min"),
+        # Opening and replying to a support thread, including photo uploads (Phase F).
+        'support': env.str("THROTTLE_SUPPORT", default="20/min"),
     },
 }
 

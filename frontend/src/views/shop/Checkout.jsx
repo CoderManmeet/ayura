@@ -19,7 +19,13 @@ import usePageTitle from '../../utils/usePageTitle';
 //   * "UPI / Card / Netbanking" opens Razorpay Checkout. When the customer finishes there, the
 //     server only notes that they came back; the order becomes PAID when Razorpay's own
 //     server-to-server notification confirms it. The confirmation page waits for that.
-//   * "Cash on delivery" places the order with nothing charged.
+//   * "Cash on delivery" places the order with nothing charged online. When the owner has a
+//     Cash on Delivery fee switched on (Phase C), the option says so ("+ ₹49 fee") and the
+//     summary and total change to include it the moment it is chosen, before "Place order".
+//
+// When the page opens, the server re-prices the order draft with today's shipping settings and
+// returns both totals (`payments/quote/`). Placing a COD order sends the total that was shown;
+// if the server's figure differs, the order is not placed and the new total is shown instead.
 //
 // Stripe and PayPal are not offered (their code remains in the project, switched off).
 
@@ -29,6 +35,8 @@ const METHOD_COD = 'cod';
 function Checkout() {
   usePageTitle('Checkout');
   const [order, setOrder] = useState(null)
+  // { online, cod }: both totals from the server, in paise. `cod` is null when COD is not offered.
+  const [quotes, setQuotes] = useState(null)
   const [methods, setMethods] = useState(null)
   const [method, setMethod] = useState(METHOD_ONLINE)
   const [couponCode, setCouponCode] = useState("")
@@ -46,12 +54,25 @@ function Checkout() {
     })
   }, [axios, param?.order_oid])
 
+  // Re-price the draft with today's settings, then show the stored result.
+  const refreshQuotes = useCallback(async () => {
+    try {
+      const res = await axios.post(`payments/quote/${param?.order_oid}/`)
+      setQuotes(res.data.draft ? { online: res.data.online, cod: res.data.cod } : null)
+    } catch (error) {
+      setQuotes(null)
+    }
+    return loadOrder()
+  }, [axios, param?.order_oid, loadOrder])
+
   useEffect(() => {
     loadOrder().then((data) => {
       // An order that has already been placed has nothing left to do here.
       if (data.payment_status === 'paid' || data.payment_status === 'pending') {
         navigate(`/order/${data.oid}/`, { replace: true })
+        return
       }
+      refreshQuotes()
     })
     axios.get('payments/methods/').then((res) => {
       setMethods(res.data)
@@ -70,7 +91,7 @@ function Checkout() {
 
     try {
       const response = await axios.post('coupon/', formdata)
-      await loadOrder()
+      await refreshQuotes()
       Swal.fire({
         icon: response.data.message === "Coupon Already Activated" ? 'info' : 'success',
         title: response.data.message,
@@ -140,10 +161,17 @@ function Checkout() {
   const placeCod = async () => {
     setPaying(true)
     try {
-      await axios.post(`payments/cod/${order.oid}/`)
+      await axios.post(`payments/cod/${order.oid}/`, { expected_total_paise: quotes?.cod?.total_paise ?? order.total_paise })
       navigate(`/order/${order.oid}/`)
     } catch (error) {
-      showError('Could not place the order', error)
+      const data = error?.response?.data
+      if (error?.response?.status === 409 && data?.total_changed && data.cod) {
+        // The fee or shipping changed while the page was open: show the new total, place nothing.
+        setQuotes((current) => ({ ...(current || {}), cod: data.cod }))
+        Swal.fire({ icon: 'info', title: 'The total has changed', text: `${data.message} New total: ${formatINR(data.cod.total_paise)}.` })
+      } else {
+        showError('Could not place the order', error)
+      }
     } finally {
       setPaying(false)
     }
@@ -153,9 +181,17 @@ function Checkout() {
     return <main><Loading>Loading your order...</Loading></main>
   }
 
-  const hasDiscount = order.saved_paise > 0
   const onlineOffered = Boolean(methods?.razorpay)
   const codOffered = Boolean(methods?.cod)
+  const codQuote = codOffered ? quotes?.cod : null
+  const codFee = codQuote ? codQuote.cod_fee_paise : (methods?.cod_fee_paise || 0)
+  // The figures shown are those of the chosen way to pay: the stored order for online payment
+  // (exactly what Razorpay will be asked for), the server's COD quote for Cash on Delivery.
+  const showCod = method === METHOD_COD && Boolean(codQuote)
+  const shown = showCod
+    ? { subtotal: codQuote.subtotal_paise, discount: codQuote.discount_paise, shipping: codQuote.shipping_paise, fee: codQuote.cod_fee_paise, total: codQuote.total_paise, coupon: codQuote.coupon_code }
+    : { subtotal: order.sub_total_paise, discount: order.saved_paise, shipping: order.shipping_amount_paise, fee: 0, total: order.total_paise, coupon: order.coupon_code }
+  const hasDiscount = shown.discount > 0
   const radio = (selected) => `flex cursor-pointer items-center gap-3 border px-4 py-4 text-sm ${selected ? 'border-ink' : 'border-line-strong'}`
 
   return (
@@ -193,12 +229,15 @@ function Checkout() {
           <section className="h-fit bg-panel p-6 md:p-8" data-testid="checkout-summary">
             <p className="mb-6 ui-caption">Order summary</p>
             <div className="flex flex-col gap-3 text-sm">
-              <div className="flex justify-between"><span>Subtotal</span><span data-testid="summary-subtotal">{formatINR(order.sub_total_paise)}</span></div>
+              <div className="flex justify-between"><span>Subtotal</span><span data-testid="summary-subtotal">{formatINR(shown.subtotal)}</span></div>
               {hasDiscount &&
-                <div className="flex justify-between text-accent"><span>Discount{order.coupon_code ? ` (${order.coupon_code})` : ''}</span><span data-testid="summary-discount">-{formatINR(order.saved_paise)}</span></div>
+                <div className="flex justify-between text-accent"><span>Discount{shown.coupon ? ` (${shown.coupon})` : ''}</span><span data-testid="summary-discount">-{formatINR(shown.discount)}</span></div>
               }
-              <div className="flex justify-between"><span>Shipping</span><span data-testid="summary-shipping">{order.shipping_amount_paise > 0 ? formatINR(order.shipping_amount_paise) : 'Free'}</span></div>
-              <div className="mt-3 flex justify-between border-t border-line pt-4 font-display text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(order.total_paise)}</span></div>
+              <div className="flex justify-between"><span>Shipping</span><span data-testid="summary-shipping">{shown.shipping > 0 ? formatINR(shown.shipping) : 'Free'}</span></div>
+              {shown.fee > 0 &&
+                <div className="flex justify-between"><span>Cash on Delivery fee</span><span data-testid="summary-cod-fee">{formatINR(shown.fee)}</span></div>
+              }
+              <div className="mt-3 flex justify-between border-t border-line pt-4 font-display text-2xl"><span>Total</span><span data-testid="summary-total">{formatINR(shown.total)}</span></div>
               <p className="text-xs text-subtle">Inclusive of all taxes</p>
             </div>
 
@@ -215,7 +254,7 @@ function Checkout() {
               </p>
             }
 
-            {/* How to pay. Neither option costs more than the other: no COD fee is charged. */}
+            {/* How to pay. A Cash on Delivery fee, when the owner charges one, is named on the option itself. */}
             <p className="mb-3 mt-9 ui-caption">How would you like to pay?</p>
             <div className="flex flex-col gap-2" data-testid="payment-methods">
               {onlineOffered &&
@@ -227,7 +266,7 @@ function Checkout() {
               {codOffered &&
                 <label htmlFor="payCod" className={radio(method === METHOD_COD)}>
                   <input type="radio" name="paymentMethod" id="payCod" className="accent-ink" checked={method === METHOD_COD} onChange={() => setMethod(METHOD_COD)} />
-                  Cash on delivery
+                  <span>Cash on delivery{codFee > 0 && <span className="text-subtle" data-testid="cod-fee-label"> (+ {formatINR(codFee)} fee)</span>}</span>
                 </label>
               }
               {methods !== null && !onlineOffered && !codOffered &&
@@ -242,10 +281,10 @@ function Checkout() {
             }
             {method === METHOD_COD && codOffered &&
               <>
-                <button onClick={placeCod} type="button" disabled={paying} className="ui-btn mt-6 w-full" data-testid="place-cod">
+                <button onClick={placeCod} type="button" disabled={paying || (codFee > 0 && !codQuote)} className="ui-btn mt-6 w-full" data-testid="place-cod">
                   {paying ? 'Please wait...' : 'Place order'}
                 </button>
-                <p className="mt-3 text-xs leading-6 text-subtle">You pay {formatINR(order.total_paise)} in cash when your order arrives. We may call or message you to confirm it before we send it.</p>
+                <p className="mt-3 text-xs leading-6 text-subtle">You pay {formatINR(shown.total)} in cash when your order arrives{shown.fee > 0 ? `, including the ${formatINR(shown.fee)} Cash on Delivery fee` : ''}. We may call or message you to confirm it before we send it.</p>
               </>
             }
 

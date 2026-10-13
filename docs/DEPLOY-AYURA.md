@@ -1,10 +1,15 @@
 # Putting Ayura online for free
 
+Covers the store as built through **phase F** (catalogue, shipping and COD fees, dispatch checks
+and samples, kits, customer support). If you deployed at phase A, the parts that changed are
+listed in [What changed since phase A](#what-changed-since-phase-a) — read that and you can skip
+the rest.
+
 Ayura runs as its own store, completely separate from Noore: its own GitHub repository, Neon
 database, Render backend, Vercel storefront, Cloudinary account and Razorpay account. Nothing is
 shared, so a problem (or a change) in one store can never reach the other.
 
-The storefront goes on Vercel, the backend on Render, the database on Neon and product photos on
+The storefront goes on Vercel, the backend on Render, the database on Neon and photos on
 Cloudinary. All free, no card, no domain. Allow about an hour the first time.
 
 **What "free" means here.** These tiers are meant for demos and side projects, and most of them
@@ -15,6 +20,23 @@ server with `docs/DEPLOY.md`. Nothing you do here is wasted.
 next visitor waits while it wakes. The storefront shows real products from its cache and says
 plainly that the server is starting (see `frontend/src/utils/apiCache.js`). The keep-awake
 workflow in step 6 makes the sleep rare.
+
+---
+
+## What changed since phase A
+
+If your store is already online, these are the only things to do:
+
+| # | Change | What to do |
+|---|---|---|
+| 1 | **Migrations.** Phases B–F add 14 of them, including the new `support` app | Nothing. `build.sh` runs `migrate` on every deploy. Just push and watch the build log. |
+| 2 | **`MIN_SHELF_LIFE_ON_DISPATCH_DAYS` is now `0`**, not 30 (ROADMAP Z1) | If you set it to `30` on Render, **delete the variable** or set it to `0`. At 30 the store refuses to dispatch any batch with under a month of shelf life left. |
+| 3 | **Customers can now upload photos** (phase F support threads) | `CLOUDINARY_URL` goes from "or product photos vanish" to **mandatory**: without it you lose a customer's evidence of a damaged parcel. See step 2. |
+| 4 | **Tighten the support rate limit** before you take real orders | Add `THROTTLE_SUPPORT=6/min` on Render. Step 2 explains why 20/min is too loose with file uploads. |
+| 5 | **The grievance-officer fields are blank** and the Contact page shows nothing until you fill them | Admin area → Store settings → Grievance officer. See [Before your first real order](#before-your-first-real-order). |
+| 6 | **`DJANGO_EMAIL_BACKEND` is now set in `render.yaml`** to the dummy backend | Nothing, unless you already set it by hand — in which case your dashboard value wins and still works. |
+| 7 | New optional settings: `THROTTLE_SUPPORT`, `SUPPORT_LINK_HOURS`, `SUPPORT_MAX_PHOTOS_PER_MESSAGE`, `SUPPORT_PHOTO_MAX_MB`, `SUPPORT_NOTIFY_EMAILS`, `EXPIRY_ALERT_DAYS` | All have working defaults. Set `SUPPORT_NOTIFY_EMAILS` if you want an email when a customer writes in. |
+| 8 | **Never set `DJANGO_ENV_FILE` on Render** | It exists only so the test suite can read the shipped defaults. Set to a real path it would load settings from that file instead. There is no `.env` on Render, so leave it unset. |
 
 ---
 
@@ -49,8 +71,7 @@ On github.com: **New repository**, name it `ayura-store`, **Private**, **Create*
     git remote add origin https://github.com/YOURNAME/ayura-store.git
     git push -u origin phase/A-rebrand
 
-Merge `phase/A-rebrand` into `main` on GitHub when you have approved the phase, and deploy from
-`main`.
+Merge each approved phase branch into `main` on GitHub, and deploy from `main`.
 
 **`backend/.env`, `backend/db.sqlite3` and `backend/media/` are not pushed** (`.gitignore`
 excludes them). That is correct: secrets never go into a repository, and the online store starts
@@ -78,6 +99,9 @@ accepted by the other.
 
 > Why not Render's own free database? It is deleted 30 days after it is created, data and all.
 
+PostgreSQL is also what the concurrency tests need, so this is the same engine the stock
+locking was tested against (two shoppers racing for the last unit, or the last kit).
+
 ---
 
 ## Step 2: photo storage (Cloudinary)
@@ -86,8 +110,29 @@ accepted by the other.
 2. On the dashboard, copy the **API Environment variable**: everything after `CLOUDINARY_URL=`,
    which looks like `cloudinary://419455555555555:aBcDeF-gHiJkLmNoPqRsTuVwXyZ@dxyz1234`.
 
-> Without it, every product photo disappears the first time the backend restarts: free Render
-> services have no disk of their own.
+**This is mandatory, not optional.** Free Render services have no disk of their own, so without
+it everything uploaded disappears on the next restart or deploy. Since phase F that includes
+**photos your customers send you** of a damaged or leaking parcel — the evidence for their
+complaint, and for yours with the courier.
+
+### Size and abuse, with real numbers
+
+At the time of writing Cloudinary's free plan was **25 monthly credits**, 1 credit being 1 GB of
+storage **or** 1 GB of CDN bandwidth — **check [the current plan](https://cloudinary.com/pricing)
+yourself, because this is their pricing and it changes.** On those numbers, and the store's own
+defaults of 3 photos per message at 5 MB each, 25 GB is roughly 1,700 full-size support
+messages. Your real catalogue and its product photos are nowhere near that. Storage is not your
+problem.
+
+**The rate limit is.** `THROTTLE_SUPPORT` ships at `20/min`, and a guest needs no account to open
+a thread. At 3 × 5 MB per message that is up to 900 MB a minute from one address, so a bored
+attacker could burn the month's credits in under half an hour. A real customer never sends 20
+support messages in a minute. Before you take real orders, on Render add:
+
+    THROTTLE_SUPPORT=6/min
+
+and if you want a smaller blast radius still, `SUPPORT_PHOTO_MAX_MB=3`. A phone photo is
+comfortably under 3 MB. Cloudinary's dashboard shows credit use; check it after your first week.
 
 ---
 
@@ -104,8 +149,9 @@ accepted by the other.
 
        https://<your-render-address>/api/v1/health/
 
-   You want `"status": "ok"`, `"database": true`, `"cache": true`. `worker` stays `false` until
-   step 6.
+   You want `"status": "ok"`, `"database": true`, `"cache": true`. `worker` is an object, not a
+   flag — `{"ok": false, "seconds_since_last_job": null}` until step 6, and the plain
+   `/health/` address stays `"ok"` whatever the worker is doing. Only `?strict=1` fails on it.
 
 5. Create your admin login. Render's free plan has **no Shell tab**, so do it from your own
    computer, pointed at the Neon database for the length of three commands:
@@ -119,6 +165,9 @@ accepted by the other.
 
    Use the same email in both. **Always run the last line**, or your next local command runs
    against the online database.
+
+   Then sign out and back in on the storefront: the admin area is driven by the `vendor_id`
+   claim in your sign-in token, so a token issued before `claim_shop` does not have it.
 
 ### Backend environment variables (Render)
 
@@ -136,12 +185,14 @@ documented in `backend/.env.example`.
 | `ENABLED_PAYMENT_PROVIDERS` | `razorpay,cod` | render.yaml |
 | `STORE_NAME` | `Ayura` | render.yaml |
 | `WEB_CONCURRENCY` | `2` | render.yaml |
+| `DJANGO_EMAIL_BACKEND` | the dummy backend, until you have an email provider | render.yaml |
 | `DATABASE_URL` | the Neon connection string (step 1) | you |
 | `CLOUDINARY_URL` | the `cloudinary://...` value (step 2) | you |
 | `SITE_URL` | your Vercel address, no trailing slash (step 5) | you |
 | `CORS_ALLOWED_ORIGINS` | your Vercel address, no trailing slash (step 5) | you |
 | `CSRF_TRUSTED_ORIGINS` | your Vercel address, no trailing slash (step 5) | you |
-| `DJANGO_EMAIL_BACKEND` | `django.core.mail.backends.dummy.EmailBackend` until you have an email provider | you |
+| `THROTTLE_SUPPORT` | `6/min` before real orders (step 2) | you |
+| `SUPPORT_NOTIFY_EMAILS` | your email, to be told when a customer writes in; blank sends none | you, optional |
 | `DEFAULT_FROM_EMAIL` | the sender address, once you have an email provider | you, later |
 | `MAILGUN_API_KEY`, `MAILGUN_SENDER_DOMAIN` | from Mailgun, if you choose it | you, later |
 | `ERROR_REPORT_EMAILS` | your email, once email works | you, later |
@@ -150,13 +201,26 @@ documented in `backend/.env.example`.
 
 `RENDER_EXTERNAL_HOSTNAME` is set by Render itself; the backend adds it to the allowed hosts.
 
-> **Why the dummy email backend:** the default is Mailgun, and with no Mailgun keys every order
-> email fails and is retried until it gives up. The dummy backend quietly drops emails instead.
+> **Why the dummy email backend:** the real default is Mailgun, and with no Mailgun keys every
+> email fails and is retried until it gives up. The dummy backend quietly drops them instead.
 > Do not use the console backend online: it would write customers' emails and addresses into the
-> Render logs.
+> Render logs. **When you do configure Mailgun, remember to remove this variable** — otherwise
+> everything keeps being silently dropped and you will think the provider is broken.
 
-Leave everything else at its default. Of note for Ayura: `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` (30)
-and `EXPIRY_ALERT_DAYS` (45) are revisited in phase D.
+**Settings to leave alone**, listed because they are the ones people ask about:
+
+- `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` — default `0`, which is the rule the store is built around
+  (ROADMAP Z1): an **expired** batch is never dispatched, and nothing else is held back. The
+  dispatch screen flags stock that is close to its date and leaves the decision to you. Set it
+  to a number only if you want a hard margin, and know that it will refuse to allocate stock you
+  can see on the shelf.
+- `EXPIRY_ALERT_DAYS` — default `45`, the horizon for "due soon" on the Stock & expiry screen.
+- `SUPPORT_LINK_HOURS` — default `720` (30 days), how long a guest's link to their own support
+  thread keeps working.
+- `STOCK_RESERVATION_TTL_MINUTES` — default `30`, how long a cart holds stock before releasing it.
+- `DJANGO_ENV_FILE` — **do not set this.** It exists so the test suite can read the defaults a
+  fresh install has, by pointing it at a file that does not exist. On Render there is no `.env`
+  to load anyway.
 
 ---
 
@@ -202,14 +266,18 @@ trailing slash**, for example `https://ayura-store.vercel.app`:
 
 Save; Render redeploys. Open your Vercel address: the storefront loads and talks to the backend.
 
+`SITE_URL` is not only cosmetic. Every link the backend builds uses it: the payment return
+address, a guest's "create your account" link, and a guest's link to their own support thread.
+Wrong here means those links go nowhere.
+
 ---
 
 ## Step 6: keep it awake and run the background jobs
 
-Order emails, payment reconciliation and abandoned-checkout expiry normally run in a second
-process, which the free plan does not have. The workflow `.github/workflows/keep-awake.yml`
-calls the backend every ten minutes instead: one request keeps Render and Neon awake, a second
-runs the jobs that are due.
+Order emails, **support emails**, payment reconciliation and abandoned-checkout expiry normally
+run in a second process, which the free plan does not have. The workflow
+`.github/workflows/keep-awake.yml` calls the backend every ten minutes instead: one request
+keeps Render and Neon awake, a second runs the jobs that are due.
 
 1. On Render, **ayura-api** > **Environment**, reveal `JOBS_RUN_TOKEN` and copy it.
 2. On GitHub, `ayura-store` > **Settings** > **Secrets and variables** > **Actions**:
@@ -219,7 +287,9 @@ runs the jobs that are due.
 3. **Actions** tab > **keep-awake** > **Run workflow**. Two green ticks mean both jobs worked.
    After that it runs on its own.
 
-Then `https://<your-render-address>/api/v1/health/?strict=1` reports `worker: true`.
+Then `https://<your-render-address>/api/v1/health/?strict=1` answers 200 with
+`"worker": {"ok": true, ...}`. Before the first job runs, that address answers 503 — which is
+the point of `?strict=1`, and why your uptime monitor should use the plain `/health/` instead.
 
 The workflow has **no built-in address**: without `API_BASE_URL` it says so and does nothing. A
 copied workflow can therefore never ping another store's backend.
@@ -227,6 +297,10 @@ copied workflow can therefore never ping another store's backend.
 > GitHub pauses scheduled workflows in a repository with no activity for 60 days, and can run
 > them late when it is busy. For a store that must never be slow, also add a free
 > cron-job.org check of the health address every 5 minutes.
+
+**Support threads do not depend on any of this.** The conversation is in the database the moment
+the customer sends it, and your inbox shows it whether or not an email ever goes out. Jobs being
+down delays the notification, not the report.
 
 ---
 
@@ -252,20 +326,44 @@ your decision and Razorpay's, not something set in code.
 
 ## Step 8: fill the shop
 
-Sign in on your Vercel address with the superuser from step 3, then:
+Sign in on your Vercel address with the superuser from step 3. Everything below is in the
+**Admin area**, from the sidebar:
 
-1. **Admin** (top right) > **Add product**: photo, title, description, price, MRP, stock.
-2. Until phase B adds the sizes and stock screens, sizes and extra stock are added in Django
-   admin at `https://<your-render-address>/admin/`:
-   - **Catalog** > **Product variants**: one row per size (name `30 ml`, options
-     `{"Size": "30 ml"}`, price and MRP in paise: ₹449 is `44900`).
-   - **Inventory** > **Batches**: add a batch to put stock in.
-3. The About page and the policy pages are still placeholder text, and say so on the page. They
-   live in `frontend/src/views/policy/`. Replace the text, set `PLACEHOLDER_COPY` to `false` in
-   `policies.js`, commit and push; Vercel redeploys on its own.
+1. **Add product** — photo, title, description.
+2. **Products** > **Sizes & stock** on a product:
+   - **Sizes**: one row per size, each with its own price, MRP, net quantity (g or ml) and
+     packed shipping weight. Tick **Sample** for something you give away, or **Kit** for a size
+     made of other sizes.
+   - **Stock**: add a batch (how many you made, when, and the use-by date if you know it). Stock
+     is a ledger, so quantities are never edited — only corrected by another movement.
+   - **Details**: category, the benefit line on the product tile, how to use, ingredients,
+     cautions. Words that read as a medical claim are flagged while you type; saving is never
+     blocked, it is a prompt to check your wording.
+3. **Kits** — say what goes inside each kit size. The screen shows how many kits each part
+   allows and names the one holding it back.
+4. **Store settings** — shipping charge, free-shipping threshold, Cash on Delivery and its fee,
+   the label details shown on every product page, and the grievance-officer block.
+5. **Categories**, **Stock & expiry**, **Samples**, **Support**, **Review moderation** as you
+   need them.
 
 `python manage.py seed_ayura` (sample products) refuses to run with `DEBUG` off, so it can never
 put sample products into the online store.
+
+---
+
+## Before your first real order
+
+The store works without these. Taking money from a stranger without them is a different matter.
+
+| # | What | Where |
+|---|---|---|
+| 1 | **Grievance-officer details.** The Contact page shows nothing until you fill in a name. The Consumer Protection (E-Commerce) Rules expect an e-commerce store to publish them; whether they are required of your business, and in what wording, is **ROADMAP L4 and a question for your professional** — this codebase deliberately writes none of it | Admin area → Store settings → Grievance officer |
+| 2 | **Replace the placeholder policies.** Shipping, Returns and Refunds, Privacy, Terms are placeholder text and say so on the page. Edit `frontend/src/views/policy/policies.js`, then set `PLACEHOLDER_COPY = false` in the same file, commit and push | the repository, then Vercel redeploys |
+| 3 | **Replace the About page** text | `frontend/src/views/policy/About.jsx` |
+| 4 | **Tighten `THROTTLE_SUPPORT`** to `6/min` (step 2) | Render → Environment |
+| 5 | **The label details** on every product page: maker name, address, country of origin, consumer care. Also L3, also your professional's call | Admin area → Store settings → Product information |
+| 6 | **An email provider.** Until one is set, no order confirmation and no support acknowledgement is delivered. A guest's support link is shown **on screen** as well for exactly this reason — but tell them to keep it | Mailgun, then the Render variables in step 3 |
+| 7 | **Real product photos**, and real use-by dates on your batches | Admin area |
 
 ---
 
@@ -273,10 +371,13 @@ put sample products into the online store.
 
 | Task | How |
 |---|---|
-| Deploy a change | `git push` to `main`. Render and Vercel both rebuild on their own. |
+| Deploy a change | `git push` to `main`. Render and Vercel both rebuild on their own; `build.sh` runs `migrate` for you. |
 | See backend errors | Render > ayura-api > **Logs** |
+| Answer a customer | Admin area > **Support**. The sidebar shows how many you have not looked at. |
+| Pack an order | Admin area > **Orders** > open one. **Packing** shows the batch each line goes out from and flags expired or undated stock. |
 | Back up the database | Neon > your project > **Backups**, or `pg_dump` as in `docs/DEPLOY.md` |
-| Check the jobs are running | `/api/v1/health/?strict=1` says `worker: true`; GitHub **Actions** shows green runs |
+| Check the jobs are running | `/api/v1/health/?strict=1` answers 200 with `"worker": {"ok": true, ...}`; GitHub **Actions** shows green runs |
+| Check Cloudinary use | Cloudinary dashboard > credits, after your first week (step 2) |
 
 ---
 
@@ -287,13 +388,19 @@ put sample products into the online store.
 | Render build log says `./build.sh: Permission denied` | An old `render.yaml`. Ayura's runs `bash build.sh`, which does not need the file to be executable |
 | Storefront loads but shows no products; the browser console says CORS | `CORS_ALLOWED_ORIGINS` does not exactly match the Vercel address, or ends in a slash |
 | `DisallowedHost` in the Render log | You opened the backend on an address that is not its own; use the `.onrender.com` one |
-| Product photos vanish after a redeploy | `CLOUDINARY_URL` is missing or wrong |
+| Photos vanish after a redeploy — product photos **or** a customer's support photos | `CLOUDINARY_URL` is missing or wrong (step 2) |
 | Admin pages look unstyled | `collectstatic` did not run; redeploy with **Clear build cache** |
 | Health says `"cache": false` | `createcachetable` did not run; redeploy with **Clear build cache** |
 | keep-awake says `API_BASE_URL is not set` | Step 6, the repository **variable** (not secret) is missing |
 | keep-awake jobs step fails with 404 | The `JOBS_RUN_TOKEN` secret on GitHub does not match the one on Render |
-| Emails never arrive | Expected until an email provider is configured |
-| Nothing in the admin area, or you cannot sign in | The database is new; run `createsuperuser` and `claim_shop` (step 3) |
+| Emails never arrive | Expected while `DJANGO_EMAIL_BACKEND` is the dummy backend. If you have configured Mailgun, **delete that variable** |
+| A guest's support link opens nothing, or goes to the wrong place | `SITE_URL` is wrong or has a trailing slash (step 5). Links already emailed carry the old address |
+| A guest says their support link stopped working | It expires after `SUPPORT_LINK_HOURS` (30 days). They can get it back with their order number and email, at `/support/find` |
+| A customer's photo is refused | It is not really an image. The store opens the bytes rather than trusting the file name, so a renamed PDF is refused on purpose |
+| Stock you can see on the shelf will not allocate | `MIN_SHELF_LIFE_ON_DISPATCH_DAYS` is set above 0 on Render, or the batch is past its use-by date |
+| A kit shows as sold out with stock in the parts | One part is short, switched off, or out of date. Admin area > **Kits** names the one holding it back |
+| Nothing in the admin area, or you cannot sign in | The database is new; run `createsuperuser` and `claim_shop` (step 3), then sign out and back in |
+| `python manage.py check --deploy` warns about HSTS | Expected. `SECURE_HSTS_SECONDS` starts at an hour on purpose; subdomains and preload only matter once you have a custom domain |
 
 ---
 
@@ -301,9 +408,11 @@ put sample products into the online store.
 
 - **A custom domain.** The `*.vercel.app` address is used for now.
 - **Real emails.** Nothing is sent until an email provider is configured, and a provider will
-  want a sending domain.
+  want a sending domain. Support threads work regardless; the acknowledgement does not arrive.
 - **Live payments.** Test mode until Ayura's Razorpay KYC is done.
 - **Backups you control.** Neon's free plan keeps its own; there is no off-site copy.
 - **Always-on.** The keep-awake workflow narrows the sleep; it does not remove it.
+- **Deleted photos.** Nothing removes a support photo from Cloudinary, including when the
+  conversation is closed.
 
-`docs/DEPLOY.md` covers the paid single-server setup that fixes all five.
+`docs/DEPLOY.md` covers the paid single-server setup that fixes the first five.
