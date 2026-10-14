@@ -15,11 +15,18 @@ function UpdateProduct() {
 
   const [product, setProduct] = useState([]);
   const [specifications, setSpecifications] = useState([{ title: '', content: '' }]);
-  const [colors, setColors] = useState([{ name: '', color_code: '', image: null }]);
-  const [sizes, setSizes] = useState([{ name: '', price: 0.00 }]);
+  // No colours or clothing sizes here (Ayura). A pack size is "30 ml" or "50 g" and belongs to a
+  // VARIANT, edited on "Sizes & stock" with its own price, MRP, net quantity, packed weight and
+  // stock ledger. The old Size/Color rows were never read by pricing, stock, the cart or checkout.
   const [gallery, setGallery] = useState([{ image: null }]);
   const [category, setCategory] = useState([]);
   const [isLoading, setIsLoading] = useState(false)
+  // Which tab is open. These used to be Bootstrap pills (data-bs-toggle), but the admin area
+  // stopped loading Bootstrap's JavaScript in phase A, so nothing ever added the .active.show
+  // that admin.css needs and every tab except the first was unreachable. React state instead.
+  const [tab, setTab] = useState('basics')
+  const paneClass = (name) => `tab-pane fade ${tab === name ? 'show active' : ''}`
+  const tabClass = (name) => `nav-link ${tab === name ? 'active' : ''}`
 
 
   const navigate = useNavigate()
@@ -158,8 +165,7 @@ function UpdateProduct() {
     const fetchProductItems = async () => {
       axios.get(`vendor-product-edit/${userData?.vendor_id}/${param.pid}/`).then((res) => {
         setProduct(res.data)
-        setColors(res.data.color)
-        setSizes(res.data.size)
+        // res.data.color and res.data.size are ignored: this screen no longer edits them.
         setSpecifications(res.data.specification)
         setGallery(res.data.gallery)
       })
@@ -233,26 +239,9 @@ function UpdateProduct() {
         formData.append(`specifications[${index}][content]`, specification.content ?? '');
       });
 
-      // Append colors data
-      colors?.forEach((color, index) => {
-        if (!color?.name) return;
-        formData.append(`colors[${index}][name]`, color.name);
-        formData.append(`colors[${index}][color_code]`, color.color_code ?? '');
-        if (color.image && isFile(color.image.file)) {
-          // Newly picked file
-          formData.append(`colors[${index}][image]`, color.image.file, color.image.file.name);
-        } else if (typeof color.image === 'string' && color.image) {
-          // Existing image: send its URL back so the server keeps it
-          formData.append(`colors[${index}][image]`, color.image);
-        }
-      });
-
-      // Append sizes data
-      sizes?.forEach((size, index) => {
-        if (!size?.name) return;
-        formData.append(`sizes[${index}][name]`, size.name);
-        formData.append(`sizes[${index}][price]`, size.price ?? 0);
-      });
+      // No colors[] or sizes[] are sent. `size` and `color` are already in READ_ONLY_KEYS, and
+      // the server only acts on those keys when they are present, so any rows a product already
+      // has are left exactly as they are rather than being wiped.
 
       // Append gallery data
       gallery?.forEach((item, index) => {
@@ -303,7 +292,7 @@ function UpdateProduct() {
               <form className="main-body" method='POST' encType="multipart/form-data" onSubmit={handleSubmit}>
                 <div className="tab-content" id="pills-tabContent">
                   <div
-                    className="tab-pane fade show active"
+                    className={paneClass('basics')}
                     id="pills-home"
                     role="tabpanel"
                     aria-labelledby="pills-home-tab"
@@ -494,7 +483,7 @@ function UpdateProduct() {
                     </div>
                   </div>
                   <div
-                    className="tab-pane fade"
+                    className={paneClass('gallery')}
                     id="pills-profile"
                     role="tabpanel"
                     aria-labelledby="pills-profile-tab"
@@ -569,7 +558,7 @@ function UpdateProduct() {
                     </div>
                   </div>
                   <div
-                    className="tab-pane fade"
+                    className={paneClass('specs')}
                     id="pills-contact"
                     role="tabpanel"
                     aria-labelledby="pills-contact-tab"
@@ -626,159 +615,9 @@ function UpdateProduct() {
                     </div>
                   </div>
 
-                  <div
-                    className="tab-pane fade"
-                    id="pills-size"
-                    role="tabpanel"
-                    aria-labelledby="pills-size-tab"
-                  >
-                    <div className="row gutters-sm shadow p-4 rounded">
-                      <h4 className="mb-4">Sizes</h4>
-                      <div className="col-md-12">
-                        <div className="card mb-3">
-                          <div className="card-body">
-                            {sizes?.map((s, index) => (
-
-                              <div className="row text-dark">
-                                <div className="col-lg-3 mb-2">
-                                  <label htmlFor="" className="mb-2">
-                                    Size
-                                  </label>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    name=""
-                                    placeholder="XXL"
-                                    id=""
-                                    value={s.name || ''}
-                                    onChange={(e) => handleInputChange(index, 'name', e.target.value, setSizes)}
-
-                                  />
-                                </div>
-                                <div className="col-lg-6 mb-2">
-                                  <label htmlFor="" className="mb-2">
-                                    Price
-                                  </label>
-                                  <input
-                                    type="number"
-                                    placeholder="₹499"
-                                    className="form-control"
-                                    name=""
-                                    id=""
-                                    value={s.price || ''}
-                                    onChange={(e) => handleInputChange(index, 'price', e.target.value, setSizes)}
-
-                                  />
-                                </div>
-                                <div className="col-lg-3 mt-2">
-                                  <button type='button' onClick={() => handleRemove(index, setSizes)} className='btn btn-danger mt-4'>Remove</button>
-                                </div>
-                              </div>
-                            ))}
-                            {sizes < 1 &&
-                              <h4>No Size Added</h4>
-                            }
-                            <button type='button' onClick={() => handleAddMore(setSizes)} className="btn btn-primary mt-2">
-                              <i className="fas fa-plus" /> Add More Sizes
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className="tab-pane fade"
-                    id="pills-color"
-                    role="tabpanel"
-                    aria-labelledby="pills-color-tab"
-                  >
-                    <div className="row gutters-sm shadow p-4 rounded">
-                      <h4 className="mb-4">Color</h4>
-                      <div className="col-md-12">
-                        <div className="card mb-3">
-                          <div className="card-body">
-                            {colors?.map((c, index) => (
-                              <div className="row text-dark mb-3">
-                                <div className="col-lg-2 mb-2">
-                                  <label htmlFor="" className="mb-2">
-                                    Name
-                                  </label>
-                                  <input
-                                    type="text"
-                                    className="form-control"
-                                    name=""
-                                    placeholder="Green"
-                                    id=""
-                                    value={c.name || ''}
-                                    onChange={(e) => handleInputChange(index, 'name', e.target.value, setColors)}
-
-                                  />
-                                </div>
-                                <div className="col-lg-2 mb-2">
-                                  <label htmlFor="" className="mb-2">
-                                    Code
-                                  </label>
-                                  <input
-                                    type="text"
-                                    placeholder="#f4f7f6"
-                                    className="form-control"
-                                    name=""
-                                    id=""
-                                    value={c.color_code || ''}
-                                    onChange={(e) => handleInputChange(index, 'color_code', e.target.value, setColors)}
-
-                                  />
-                                </div>
-                                <div className="col-lg-3 mb-2">
-                                  <label htmlFor="" className="mb-2">
-                                    Image
-                                  </label>
-                                  <input
-                                    type="file"
-                                    className="form-control"
-                                    name=""
-                                    id=""
-                                    onChange={(e) => handleImageChange(index, e, setColors)}
-
-                                  />
-                                </div>
-
-                                <div className="col-lg-3 mt-2">
-                                  {c.image && (
-                                    <img
-                                      src={c.image.preview}
-                                      alt={`Preview for gallery item ${index + 1}`}
-                                      style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5 }}
-                                    />
-                                  )}
-                                  {!c.image && (
-                                    <img
-                                      src="https://developers.elementor.com/docs/assets/img/elementor-placeholder-image.png"
-                                      alt={`Preview for gallery item ${index + 1}`}
-                                      style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 5 }}
-                                    />
-                                  )}
-                                </div>
-
-                                <div className="col-lg-2 mt-2">
-                                  <button type='button' onClick={() => handleRemove(index, setColors)} className='btn btn-danger mt-4'>Remove</button>
-                                </div>
-
-                              </div>
-                            ))}
-
-                            {colors < 1 &&
-                              <h4>No Colors Added</h4>
-                            }
-
-                            <button type='button' onClick={() => handleAddMore(setColors)} className="btn btn-primary mt-2">
-                              <i className="fas fa-plus" /> Add More Colors
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  {/* The Sizes and Color tabs that stood here were from the multivendor
+                      course this project started as. They edited rows nothing ever read. A
+                      pack size ("30 ml", "50 g") is a VARIANT and lives on "Sizes & stock". */}
                   <div>
                     <ul
                       className="nav nav-pills mb-3 d-flex justify-content-center mt-5"
@@ -787,72 +626,41 @@ function UpdateProduct() {
                     >
                       <li className="nav-item" role="presentation">
                         <button
-                          className="nav-link active"
+                          className={tabClass('basics')}
                           id="pills-home-tab"
-                          data-bs-toggle="pill"
-                          data-bs-target="#pills-home"
+                          onClick={() => setTab('basics')}
                           type="button"
                           role="tab"
                           aria-controls="pills-home"
-                          aria-selected="true"
+                          aria-selected={tab === 'basics'}
                         >
                           Basic Information
                         </button>
                       </li>
                       <li className="nav-item" role="presentation">
                         <button
-                          className="nav-link"
+                          className={tabClass('gallery')}
                           id="pills-profile-tab"
-                          data-bs-toggle="pill"
-                          data-bs-target="#pills-profile"
+                          onClick={() => setTab('gallery')}
                           type="button"
                           role="tab"
                           aria-controls="pills-profile"
-                          aria-selected="false"
+                          aria-selected={tab === 'gallery'}
                         >
                           Gallery
                         </button>
                       </li>
                       <li className="nav-item" role="presentation">
                         <button
-                          className="nav-link"
+                          className={tabClass('specs')}
                           id="pills-contact-tab"
-                          data-bs-toggle="pill"
-                          data-bs-target="#pills-contact"
+                          onClick={() => setTab('specs')}
                           type="button"
                           role="tab"
                           aria-controls="pills-contact"
-                          aria-selected="false"
+                          aria-selected={tab === 'specs'}
                         >
                           Specifications
-                        </button>
-                      </li>
-                      <li className="nav-item" role="presentation">
-                        <button
-                          className="nav-link"
-                          id="pills-size-tab"
-                          data-bs-toggle="pill"
-                          data-bs-target="#pills-size"
-                          type="button"
-                          role="tab"
-                          aria-controls="pills-size"
-                          aria-selected="false"
-                        >
-                          Size
-                        </button>
-                      </li>
-                      <li className="nav-item" role="presentation">
-                        <button
-                          className="nav-link"
-                          id="pills-color-tab"
-                          data-bs-toggle="pill"
-                          data-bs-target="#pills-color"
-                          type="button"
-                          role="tab"
-                          aria-controls="pills-color"
-                          aria-selected="false"
-                        >
-                          Color
                         </button>
                       </li>
                     </ul>
