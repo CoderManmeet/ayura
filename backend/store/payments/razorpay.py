@@ -80,7 +80,26 @@ def _api(method, path, payload=None):
     if response.status_code != 200:
         error = body.get("error") if isinstance(body, dict) else None
         code = error.get("code") if isinstance(error, dict) else None
-        logger.warning("razorpay %s %s returned %s (%s)", method, path, response.status_code, code)
+        # Razorpay's `description` is the only part that says WHY ("Authentication failed",
+        # "amount must be atleast INR 1.00"). It describes the request, never the customer, and
+        # the PII filter masks the handlers anyway — so it is logged. Without it the owner sees
+        # a 502 and has nothing to act on. `reason` and `step` are logged for the same reason.
+        # Still never logged: the key, the secret, or the request body.
+        description = error.get("description") if isinstance(error, dict) else None
+        logger.warning(
+            "razorpay %s %s returned %s (code=%s step=%s reason=%s): %s",
+            method, path, response.status_code, code,
+            error.get("step") if isinstance(error, dict) else None,
+            error.get("reason") if isinstance(error, dict) else None,
+            description,
+        )
+        if response.status_code in (401, 403):
+            # Almost always the keys: a typo, a stray space, test keys in a live store, or an
+            # account not yet activated for live payments. Say so rather than "try again",
+            # which invites the customer to retry something that cannot work.
+            raise PaymentError(
+                "Online payment is not set up correctly on this store. "
+                "Please use Cash on Delivery, or contact us.", status=502)
         raise PaymentError("The payment service refused the request. Please try again.", status=502)
     return body
 
