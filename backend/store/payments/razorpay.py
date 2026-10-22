@@ -6,8 +6,14 @@ published documentation, read on 3 Oct 2026 (nothing is written from memory):
 
   * https://razorpay.com/docs/developer-tools/integrations/standard-checkout
       - Create Order:  POST {base}/v1/orders, HTTP Basic auth (key id : key secret), JSON body
-        {amount (integer paise), currency, receipt (<= 40 chars), notes, capture}.
+        {amount (integer paise), currency, receipt (<= 40 chars), notes} and NOTHING ELSE.
         Response: {id, entity, amount, amount_paid, amount_due, currency, receipt, status, ...}.
+        The endpoint refuses an unknown field outright rather than ignoring it: sending
+        `capture` (a Checkout option, not an Orders field) answered, on 23 Oct 2026,
+        `400 BAD_REQUEST_ERROR step=payment_initiation reason=extra_field_sent:
+        "capture is/are not required and should not be sent"`. Whether a payment is captured
+        automatically is an ACCOUNT setting (Razorpay dashboard -> Settings -> Payment Capture),
+        not something this request can ask for.
       - Fetch Order:   GET {base}/v1/orders/{order_id} (same order entity).
       - Checkout returns {razorpay_payment_id, razorpay_order_id, razorpay_signature}; the
         signature is HMAC-SHA256(key = key secret, data = order_id + "|" + payment_id), hex,
@@ -213,7 +219,6 @@ class RazorpayProvider(PaymentProvider):
                 "currency": CURRENCY,
                 "receipt": str(order.oid)[:40],
                 "notes": {"order_oid": str(order.oid)},
-                "capture": "automatic",
             })
             razorpay_order_id = str(created.get("id") or "")
             if not razorpay_order_id or int(created.get("amount", -1)) != amount:

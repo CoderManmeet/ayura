@@ -160,6 +160,22 @@ def test_start_is_refused_when_not_configured_or_not_enabled(api, candle, settin
 
 
 @pytest.mark.django_db
+def test_create_order_sends_only_the_four_documented_fields(api, candle, razorpay_keys):
+    """
+    Razorpay's Create Order API refuses a body carrying anything it does not define, with
+    `400 BAD_REQUEST_ERROR reason=extra_field_sent`. It does NOT ignore the extra field.
+
+    The live store hit exactly that on 23 Oct 2026: we were sending `capture`, which belongs
+    to Checkout's options and not to this endpoint, and every prepaid order died at
+    "Could not start the payment". So the body is pinned to its exact field set, not merely
+    checked for the fields we expect to be there — an extra one is the failure mode.
+    """
+    order = draft(api, candle)
+    _, call = start(api, order)
+    assert set(call.call_args.kwargs["json"]) == {"amount", "currency", "receipt", "notes"}
+
+
+@pytest.mark.django_db
 def test_a_provider_error_never_leaks_and_leaves_the_order_alone(api, candle, razorpay_keys):
     order = draft(api, candle)
     error = {"error": {"code": "BAD_REQUEST_ERROR", "description": "nope", "field": "amount"}}
